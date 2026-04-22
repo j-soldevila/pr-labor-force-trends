@@ -1,0 +1,305 @@
+---
+title: "01_data_wrangling"
+author: "Jorge R. Soldevila Irizarry"
+date: '`r Sys.Date()`'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# Disable scientific notation globally
+options(scipen = 999)
+```
+
+# This Project is the beginning of larger work that explores the potential impact of AI on the Puerto Rican work force. Here we perform initial assessment to gather insights into the behavior of Puerto Ricans in the workforce over the past 20 years.
+
+## Read in the libraries
+
+```{r Libraries, warning=FALSE, message=FALSE}
+# Install pacman if not already installed on the system. This will allow us to install desired libraries. 
+if (!require("pacman")) install.packages("pacman")
+
+# Load libraries using p_load(), which installs missing packages and loads
+#libraries.
+p_load(tidyverse,      # For data manipulation.
+       here,           # For dynamic file path *probably will not need
+       DBI,            # For interacting with database
+       odbc,
+       RPostgres,       #For connecting to Postgresql database.
+       kableExtra      #For creating tables
+       )
+```
+
+## Because of the size of our data sets we are hosting the data sets in a Postgrsql data base. Here we show steps for connecting to the data base. This method allows us to establish a connection and use native R language functions and syntax to interact with our data. 
+
+```{r Database connecting, warning=FALSE, message=FALSE}
+con <- dbConnect(
+  RPostgres::Postgres(),
+  dbname = 'pr_labor_force_ai',
+  host = "localhost",
+  port = 5432,
+  user = rstudioapi::askForPassword("Database user"),
+  password = rstudioapi::askForPassword("Database password")
+)
+```
+
+## Inside the database we have two tables, one contains data from the PRCS for the years 2006 to 2024, and another contains data from the ACS for the years 2001 to 2024.
+
+## Let's call our data by referring to the tables in the database.
+
+```{r Get Data, warning=FALSE, message=FALSE}
+
+#Get PRCS data
+prcs_06_24 <- tbl(con, "data_prcs")
+
+#Get ACS data
+acs_01_24 <- tbl(con, "data_acs")
+```
+
+# Labor Force Participation Rate for Puerto Ricans in the U.S.
+
+## To understand the participation of Puerto Rican in the Labor Force in the U.S. we first evaluate their participation rate and compare to the overall population.
+
+```{r PR labor force participation rate, message=FALSE, warning=FALSE}
+pr_lf_rate_us <- acs_01_24 %>%
+  filter(HISPAN == 2 | HISPAND == 200 | ANCESTR1 == 261,
+         AGE >= 16,
+         EMPSTAT != 0,
+         !(EMPSTATD %in% 13:15),
+         GQ != 3) %>%
+  group_by(YEAR) %>%
+  summarise(total_pop = sum(PERWT[EMPSTAT %in% c(1, 2, 3)], na.rm = TRUE),
+            in_labfor = sum(PERWT[EMPSTAT %in% c(1, 2)], na.rm = TRUE),
+            unemp = sum(PERWT[EMPSTAT == 2], na.rm = TRUE))%>%
+  mutate(labfor_rate = in_labfor/total_pop*100,
+         unemp_rate = unemp/in_labfor*100) %>%
+  collect()
+```
+
+## We can also calculate the participation rate for the total population of the U.S. for comparison analysis. 
+
+```{r Labor Force Participation Rate US, message=FALSE, warning=FALSE}
+lf_rate_us <- acs_01_24 %>%
+  filter(AGE >= 16,
+         EMPSTAT != 0,
+         !(EMPSTATD %in% 13:15),
+         GQ != 3) %>%
+  group_by(YEAR) %>%
+  summarise(total_pop = sum(PERWT[EMPSTAT %in% c(1, 2, 3)], na.rm = TRUE),
+            in_labfor = sum(PERWT[EMPSTAT %in% c(1, 2)], na.rm = TRUE),
+            unemp = sum(PERWT[EMPSTAT == 2], na.rm = TRUE))%>%
+  mutate(labfor_rate = in_labfor/total_pop*100,
+         unemp_rate = unemp/in_labfor*100) %>%
+  collect()
+```
+
+## We can visualize the trends in Labor Force Participation Rate and Unemployment rate for Puerto Ricans in the U.S. to better understand it's behavior.
+
+```{r PR in Us Labor Force Visualization, message=FALSE, warning=FALSE}
+pr_lf_us_graph <- ggplot(pr_lf_rate_us, aes(x = YEAR)) +
+  geom_line(aes(y = labfor_rate, color = "Labor Force Participation Rate")) +
+  geom_point(aes(y = labfor_rate, color = "Labor Force Participation Rate")) +
+  geom_line(aes(y = unemp_rate, color = "Unemployment Rate")) +
+  geom_point(aes(y = unemp_rate, color = "Unemployment Rate")) +
+  theme_minimal() +
+  labs(title = "Trends in Puerto Rican Labor Force Participation in the U.S. 2001-2024",
+       x = "Year",
+       y = "Rate",
+       color  = "Legend") +
+  scale_color_manual(values = c("Labor Force Participation Rate" = "blue", 
+                                "Unemployment Rate" = "orange"))
+print(pr_lf_us_graph)
+```
+
+The graph shows how Puerto Rican labor force participation has remained constant, around 64%, since 2000 and how unemployment rate sharply increased in the years after the 2008 financial crisis and has subsequently decreased in the following years.
+
+If we compare to the total population in the U.S. we see that Puerto Rican labor participation rate in the U.S. since the year 2000 has trended similar to that of the total U.S. population, although at a slightly lower percentage. The average labor participation rate for the total U.S. population was 64.94%, while the average labor force participation rate for Puerto Ricans was 63.98%. As the graph shows, labor participation rates for Puerto Ricans in the US have trended closer to the total population and has even surpassed it in multiple occasions since 2018.
+
+Unemployment rate for Puerto Ricans has experienced similar trends as the total population although unemployment for Puerto Ricans in the U.S. has remained consistently higher. This suggests that Puerto Ricans are subject to the same macroeconomic shocks as the overall population but are greater affected by them.
+
+```{r Total and PR LFPR Data Viz, message=FALSE,warning=FALSE}
+ggplot() +
+  geom_line(data = pr_lf_rate_us,
+            aes(x = YEAR,
+                y = labfor_rate, color = "Labor Force \nParticipation Rate"),
+            linewidth = 1) +
+  geom_point(data = pr_lf_rate_us,
+            aes(x = YEAR,
+                y = labfor_rate, color = "Labor Force \nParticipation Rate")) +
+  geom_line(data = pr_lf_rate_us,
+            aes(x = YEAR,
+                y = unemp_rate, color = "Unemployment Rate"),
+            linewidth = 1)+
+   geom_point(data = pr_lf_rate_us,
+            aes(x = YEAR,
+                y = unemp_rate, color = "Unemployment Rate")) +
+  geom_line(data = lf_rate_us,
+            aes(x = YEAR,
+                y = labfor_rate, color = "Labor Force \nParticipation Rate"),
+            linewidth = 1, 
+            linetype = 2)+
+   geom_point(data = lf_rate_us,
+            aes(x = YEAR,
+                y = labfor_rate, color = "Labor Force \nParticipation Rate")) +
+   geom_line(data = lf_rate_us,
+            aes(x = YEAR,
+                y = unemp_rate, color = "Unemployment Rate"),
+            linewidth = 1,
+            linetype = 2)+
+   geom_point(data = lf_rate_us,
+            aes(x = YEAR,
+                y = unemp_rate, color = "Unemployment Rate")) +
+  theme_minimal() +
+  labs(title = "Comparison Between Puerto Rican and Total US\nPopulation Labor Force Participation in the U.S. 2001-2024",
+       x = "Year",
+       y = "Rate",
+       color  = "Legend") +
+  scale_color_manual(values = c("Labor Force \nParticipation Rate" = "blue", 
+                                "Unemployment Rate" = "orange"))
+```
+
+# Labor Force Participation Rate by Age Groups
+
+```{r Estiamte LFPR by age group PR, message=FALSE,warning=FALSE}
+
+#To perform age group analysis we can update our data base tables using SQL syntax within the RStudio environment. 
+
+#First we need to create a new variable to host the recoded age variable. 
+#dbExecute(con, 'ALTER TABLE "data_acs" ADD COLUMN age_grp VARCHAR(20);')
+
+#Using SQL Update
+#dbExecute(con,r"(
+#          UPDATE "data_acs"
+#          SET age_grp = CASE
+#            WHEN "AGE" < 16 THEN 'minor'
+#            WHEN "AGE" BETWEEN 16 AND 24 THEN '16 to 24'
+#            WHEN "AGE" BETWEEN 25 AND 54 THEN '25 to 54'
+#            ELSE '55+'
+#          END;
+#          )"
+#          )
+
+#Because we updated the table in our data base, we need to establish a new connection with the updated table. We'll give it the same name and re-write the old connection.  
+#acs_01_24 <- tbl(con, "data_acs")
+
+```
+
+### Having created a new variable that groups the working age population into three major groups, we can perform a similar analysis as before to create comparisons between age groups among the Puerto Rican population and vis-a-vis the total population.
+
+```{r PR pop LFPR by Age, message=FALSE, warning=FALSE}
+
+pr_age_lf_rate_us <- acs_01_24 %>%
+  filter(HISPAN == 2 | HISPAND == 200 | ANCESTR1 == 261,
+         AGE >= 16,
+         EMPSTAT != 0,
+         !(EMPSTATD %in% 13:15),
+         GQ != 3) %>%
+  group_by(YEAR,age_grp) %>%
+  summarise(total_pop = sum(PERWT[EMPSTAT %in% c(1, 2, 3)], na.rm = TRUE),
+            in_labfor = sum(PERWT[EMPSTAT %in% c(1, 2)], na.rm = TRUE),
+            unemp = sum(PERWT[EMPSTAT == 2], na.rm = TRUE))%>%
+  mutate(labfor_rate = in_labfor/total_pop*100,
+         unemp_rate = unemp/in_labfor*100) %>%
+  collect()
+
+```
+
+Labor force participation rate among Puerto Ricans in the U.S. varies between age groups. Young adult Puerto Ricans, between the ages of 16 and 24, have sustained a labor force participation rate of around 60% since at least the year 2001. Puerto Ricans in their prime working ages, 25 to 54, steadily inceares from \~75% in 2001 to just shy of 80% in 2008. After which, the participation rate began to slowly decrease until 2014. Since, labor force participation rate has steadily increased surpassing 80% in 2019. In 2024, labor force participation rate for Puerto Ricans of prime working age reached its largest percentage with 83.3% of the Puerto Rican prime working age population participating in the labor force. Since 2001, the labor force participation rate of older adult Puerto Ricans, 55 years and over, increased from 28% to 37%. The sustain growth in participation rate of older Puerto Ricans represents a need for older Puerto Ricans to seek employment as living costs accross the U.S. increased or a possible growth of the older Puerto Rican ppulation in the U.S.
+
+```{r PR Age Group Visualizaing, message=FALSE, warning=FALSE}
+ggplot(pr_age_lf_rate_us, aes(x = YEAR, y = labfor_rate, color = age_grp)) +
+  geom_line(linewidth = 1) +
+  geom_point() +
+  labs(
+    title = "Labor Force Participation Rate by Age Group",
+    x = "Year",
+    y = "Participation Rate (%)",
+    color = "Age Group"
+  ) +
+  theme_minimal()
+```
+
+As seen in the Figure, prime working age Puerto Ricans in the U.S. have steadily grown, particularly after 2008(possibly 2006), only decreasing from 2019 to 2020 and 2022 to 2023. Older adults, 55 years of age and older, have also increased steadily since 2001. Younger Puerto Rican adults experienced growth only from 2008 to 2010 and have tabled since. In 2013, Puerto Ricans age 55 and over surpassed Puerto Ricans 16 to 24 as the second largest age group of Puerto Ricans living in the U.S. Trends among these population age groups may help explain the trends in the labor force participation rate of these groups.
+
+```{r  PR Age Group Visualizaing 2, message=FALSE, warning=FALSE}
+ggplot(pr_age_lf_rate_us, aes(x = YEAR, y = total_pop, color = age_grp)) +
+  geom_line(linewidth = 1) +
+  geom_point() +
+  labs(
+    title = "Labor Force Participation Rate by Age Group",
+    x = "Year",
+    y = "Puerto Rican Population",
+    color = "Age Group"
+  ) +
+  theme_minimal()
+```
+
+### We can compare now to the total population in the U.S.
+
+```{r Total pop LFPR by Age, message=FALSE, warning=FALSE}
+#Create data for total population
+age_lf_rate_us <- acs_01_24 %>%
+  filter(AGE >= 16,
+         EMPSTAT != 0,
+         !(EMPSTATD %in% 13:15),
+         GQ != 3) %>%
+  group_by(YEAR,age_grp) %>%
+  summarise(total_pop = sum(PERWT[EMPSTAT %in% c(1, 2, 3)], na.rm = TRUE),
+            in_labfor = sum(PERWT[EMPSTAT %in% c(1, 2)], na.rm = TRUE),
+            unemp = sum(PERWT[EMPSTAT == 2], na.rm = TRUE))%>%
+  mutate(labfor_rate = in_labfor/total_pop*100,
+         unemp_rate = unemp/in_labfor*100) %>%
+  collect()
+
+```
+
+### We need now to join our data sets.
+
+```{r Join age data, message=FALSE, warning=FALSE}
+combined_lf_data <- bind_rows(
+  pr_age_lf_rate_us %>% mutate(population_group = "Puerto Rican"),
+  age_lf_rate_us %>% mutate(population_group = "Total Population")
+)
+```
+
+```{r Total and PR Age Group Visualizaing LFPR, message=FALSE, warning=FALSE}
+ggplot(combined_lf_data, aes(x = YEAR, y = labfor_rate, color = population_group)) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 2) +
+  facet_wrap(~ age_grp) + # This creates a separate panel for each age group
+  labs(
+    title = "Labor Force Participation Rate by Age Group",
+    subtitle = "Puerto Rican vs. Total US Population",
+    x = "Year",
+    y = "Participation Rate (%)",
+    color = "Population"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "bottom",
+    strip.text = element_text(face = "bold", size = 11) # Makes the age group labels stand out
+  )
+```
+
+\
+Compared to the Puerto Rican population 16 to 24, the labor force participation rate for that total population in this age group has been decreasing, dropping bellow 60% in 2010. In the years 2019 and 2020, labor force participation rate for young Puerto Rican adults surpassed that of the total population in the U.S. Trends among prime working age population suggests that Puerto Ricans have followed similar trends as the total population, although the difference between rates among the total population and Puerto Rican population have decreased, particularly after 2015. As discussed before, labor force participation rate among Puerto Ricans 55+ has increased in the U.S. particularly after 2015. Our data shows that among total population labor force participation rate has remained constant since the economic crisis of 2008, hovering around 40%.
+
+```{r Total and PR Age Group Visualizaing Unemp, message=FALSE, warning=FALSE}
+ggplot(combined_lf_data, aes(x = YEAR, y = unemp_rate, color = population_group)) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 2) +
+  facet_wrap(~ age_grp, ncol = 2) + # This creates a separate panel for each age group
+  labs(
+    title = "Unemployment Rate by Age Group",
+    subtitle = "Puerto Rican vs. Total US Population",
+    x = "Year",
+    y = "Participation Rate (%)",
+    color = "Population"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "bottom",
+    strip.text = element_text(face = "bold", size = 11) # Makes the age group labels stand out
+  )
+```
