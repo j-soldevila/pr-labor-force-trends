@@ -26,12 +26,13 @@ p_load(tidyverse,      # For data manipulation.
        here,           # For dynamic file path *probably will not need
        DBI,            # For interacting with database
        odbc,
-       RPostgres,       #For connecting to Postgresql database.
-       kableExtra      #For creating tables
-       )
+       RPostgres,      # For connecting to Postgresql database.
+       kableExtra,     # For creating tables
+       scales           # For formating y-axis in graphs
+       ) 
 ```
 
-## Because of the size of our data sets we are hosting the data sets in a Postgrsql data base. Here we show steps for connecting to the data base. This method allows us to establish a connection and use native R language functions and syntax to interact with our data. 
+## Because of the size of our data sets we are hosting the data sets in a Postgrsql data base. Here we show steps for connecting to the data base. This method allows us to establish a connection and use native R language functions and syntax to interact with our data.
 
 ```{r Database connecting, warning=FALSE, message=FALSE}
 con <- dbConnect(
@@ -77,7 +78,7 @@ pr_lf_rate_us <- acs_01_24 %>%
   collect()
 ```
 
-## We can also calculate the participation rate for the total population of the U.S. for comparison analysis. 
+## We can also calculate the participation rate for the total population of the U.S. for comparison analysis.
 
 ```{r Labor Force Participation Rate US, message=FALSE, warning=FALSE}
 lf_rate_us <- acs_01_24 %>%
@@ -205,10 +206,116 @@ pr_age_lf_rate_us <- acs_01_24 %>%
 
 ```
 
-Labor force participation rate among Puerto Ricans in the U.S. varies between age groups. Young adult Puerto Ricans, between the ages of 16 and 24, have sustained a labor force participation rate of around 60% since at least the year 2001. Puerto Ricans in their prime working ages, 25 to 54, steadily inceares from \~75% in 2001 to just shy of 80% in 2008. After which, the participation rate began to slowly decrease until 2014. Since, labor force participation rate has steadily increased surpassing 80% in 2019. In 2024, labor force participation rate for Puerto Ricans of prime working age reached its largest percentage with 83.3% of the Puerto Rican prime working age population participating in the labor force. Since 2001, the labor force participation rate of older adult Puerto Ricans, 55 years and over, increased from 28% to 37%. The sustain growth in participation rate of older Puerto Ricans represents a need for older Puerto Ricans to seek employment as living costs accross the U.S. increased or a possible growth of the older Puerto Rican ppulation in the U.S.
+Labor force participation rate among Puerto Ricans in the U.S. varies between age groups. Young adult Puerto Ricans, between the ages of 16 and 24, have sustained a labor force participation rate of around 60% since at least the year 2001. Puerto Ricans in their prime working ages, 25 to 54, steadily increases from \~75% in 2001 to just shy of 80% in 2008. After which, the participation rate began to slowly decrease until 2014. Since, labor force participation rate has steadily increased surpassing 80% in 2019. In 2024, labor force participation rate for Puerto Ricans of prime working age reached its largest percentage with 83.3% of the Puerto Rican prime working age population participating in the labor force. Since 2001, the labor force participation rate of older adult Puerto Ricans, 55 years and over, increased from 28% to 37%. The sustain growth in participation rate of older Puerto Ricans represents a need for older Puerto Ricans to seek employment as living costs across the U.S. increased or a possible growth of the older Puerto Rican population in the U.S.
 
 ```{r PR Age Group Visualizaing, message=FALSE, warning=FALSE}
 ggplot(pr_age_lf_rate_us, aes(x = YEAR, y = labfor_rate, color = age_grp)) +
+  geom_line(linewidth = 1) +
+  geom_point() +
+  labs(
+    title = "Labor Force Participation Rate for Puerto Ricans by Age Group",
+    x = "Year",
+    y = "Participation Rate (%)",
+    color = "Age Group"
+  ) +
+  theme_minimal()
+```
+
+As seen in the Figure, prime working age Puerto Ricans in the U.S. have steadily grown, particularly after 2005, only decreasing from 2019 to 2020 and 2022 to 2023. Older adults, 55 years of age and older, have also increased steadily since 2001. Younger Puerto Rican adults experienced growth only from 2008 to 2010 and have tabled since. In 2013, Puerto Ricans age 55 and over surpassed Puerto Ricans 16 to 24 as the second largest age group of Puerto Ricans living in the U.S. Trends among these population age groups may help explain the trends in the labor force participation rate of these groups. In fact, trends show that Puerto Rican older adults (55+) have increasingly become more prominent in the Puerto Rican Labor force in the U.S. signaling an aging of the Puerto Rican workforce or, at minimum, a growth in older Puerto Rican laborers.
+
+```{r  PR Age Group Visualizaing 2, message=FALSE, warning=FALSE}
+ggplot(pr_age_lf_rate_us, aes(x = YEAR, y = in_labfor, color = age_grp)) +
+  geom_line(linewidth = 1) +
+  geom_point() +
+  labs(
+    title = "Total Puerto Rican Population In Labor Force by Age Group",
+    x = "Year",
+    y = "Puerto Rican Population",
+    color = "Age Group"
+  ) +
+  theme_minimal()
+```
+
+### Percent of Puerto Rican labor force by age.
+
+As seen in the figure bellow, Puerto Ricans 55+ in the labor force have increasingly occupied a larger portion of the the total Puerto Rican population that is in the labor force. Puerto Ricans 16 to 24 have decreased in the percentage of the puerto rican labor force population they represent, particularly after 2013, going from just over 20% in that year to just over 16% in 2024. The proportion of those aged 55+ has consistently increased since 2001, and in 2024 surpassed by a slim margin that of the 16 to 24 age group. This is a clear indication that the Puerto Rican population in the labor force has been aging.
+
+```{r}
+# A 100% Stacked Area Chart (Great for time series)
+ggplot(pr_age_lf_rate_us, aes(x = YEAR, y = in_labfor, fill = age_grp)) +
+  geom_col(position = "fill", alpha = 0.85) + 
+  scale_y_continuous(labels = percent_format()) +
+  labs(
+    title = "Age Composition of the Puerto Rican Labor Force",
+    subtitle = "Proportion of total labor force by age group over time",
+    x = "Year",
+    y = "Percentage of Total Labor Force",
+    fill = "Age Group"
+  ) +
+  theme_minimal()
+```
+
+```{r}
+# 1. Calculate the percentages in the dataframe
+pr_age_share <- pr_age_lf_rate_us %>%
+  group_by(YEAR) %>%
+  mutate(pct_of_labor_force = (in_labfor / sum(in_labfor)) * 100) %>%
+  ungroup()
+
+# 2. Plot the new calculated variable
+ggplot(pr_age_share, aes(x = YEAR, y = pct_of_labor_force, fill = age_grp)) +
+  geom_col() + # We don't need position="fill" here because our data is already in percentages out of 100
+  labs(
+    title = "Age Composition of the Puerto Rican Labor Force",
+    x = "Year",
+    y = "Percentage (%)",
+    fill = "Age Group"
+  ) +
+  theme_minimal()
+```
+
+### Breakdown among elder Puerto Ricans
+
+We can further distinguish between older Puerto Ricans, among those that are bellow and above the retirement age.
+
+```{r}
+#First we need to create a new variable to host the recoded age variable.
+#dbExecute(con, 'ALTER TABLE "data_acs" ADD COLUMN old_age_grp VARCHAR(20);')
+
+#Using SQL Update
+#dbExecute(con,r"(
+#          UPDATE "data_acs"
+#          SET old_age_grp = CASE
+#            WHEN "AGE" < 55 THEN 'NA'
+#            WHEN "AGE" BETWEEN 55 AND 64 THEN '55 to 64'
+#            ELSE '65+'
+#          END;
+#          )"
+#          )
+
+#Because we updated the table in our data base, we need to establish a new connection with the updated table. We'll give it the same name and re-write the old connection.
+#acs_01_24 <- tbl(con, "data_acs")
+```
+
+```{r}
+pr_old_age_lf_rate_us <- acs_01_24 %>%
+  filter(HISPAN == 2 | HISPAND == 200 | ANCESTR1 == 261,
+         AGE >= 55,
+         EMPSTAT != 0,
+         !(EMPSTATD %in% 13:15),
+         GQ != 3) %>%
+  group_by(YEAR,old_age_grp) %>%
+  summarise(total_pop = sum(PERWT[EMPSTAT %in% c(1, 2, 3)], na.rm = TRUE),
+            in_labfor = sum(PERWT[EMPSTAT %in% c(1, 2)], na.rm = TRUE),
+            unemp = sum(PERWT[EMPSTAT == 2], na.rm = TRUE))%>%
+  mutate(labfor_rate = in_labfor/total_pop*100,
+         unemp_rate = unemp/in_labfor*100) %>%
+  collect()
+
+```
+
+```{r}
+ggplot(pr_old_age_lf_rate_us, aes(x = YEAR, y = labfor_rate, color = age_grp)) +
   geom_line(linewidth = 1) +
   geom_point() +
   labs(
@@ -218,21 +325,11 @@ ggplot(pr_age_lf_rate_us, aes(x = YEAR, y = labfor_rate, color = age_grp)) +
     color = "Age Group"
   ) +
   theme_minimal()
-```
-
-As seen in the Figure, prime working age Puerto Ricans in the U.S. have steadily grown, particularly after 2008(possibly 2006), only decreasing from 2019 to 2020 and 2022 to 2023. Older adults, 55 years of age and older, have also increased steadily since 2001. Younger Puerto Rican adults experienced growth only from 2008 to 2010 and have tabled since. In 2013, Puerto Ricans age 55 and over surpassed Puerto Ricans 16 to 24 as the second largest age group of Puerto Ricans living in the U.S. Trends among these population age groups may help explain the trends in the labor force participation rate of these groups.
-
-```{r  PR Age Group Visualizaing 2, message=FALSE, warning=FALSE}
-ggplot(pr_age_lf_rate_us, aes(x = YEAR, y = total_pop, color = age_grp)) +
-  geom_line(linewidth = 1) +
-  geom_point() +
-  labs(
-    title = "Labor Force Participation Rate by Age Group",
-    x = "Year",
-    y = "Puerto Rican Population",
-    color = "Age Group"
-  ) +
-  theme_minimal()
+#ggplot(pr_age_lf_rate_us, aes(x = YEAR, y = labfor_rate, color = age_grp)) + 
+#  geom_line(linewidth = 1) + 
+#  geom_point() + 
+#  labs( title = "Labor Force Participation Rate by Age Group", x = "Year", y = #"Participation Rate (%)", color = "Age Group" ) + 
+#  theme_minimal()
 ```
 
 ### We can compare now to the total population in the U.S.
@@ -284,6 +381,19 @@ ggplot(combined_lf_data, aes(x = YEAR, y = labfor_rate, color = population_group
 
 \
 Compared to the Puerto Rican population 16 to 24, the labor force participation rate for that total population in this age group has been decreasing, dropping bellow 60% in 2010. In the years 2019 and 2020, labor force participation rate for young Puerto Rican adults surpassed that of the total population in the U.S. Trends among prime working age population suggests that Puerto Ricans have followed similar trends as the total population, although the difference between rates among the total population and Puerto Rican population have decreased, particularly after 2015. As discussed before, labor force participation rate among Puerto Ricans 55+ has increased in the U.S. particularly after 2015. Our data shows that among total population labor force participation rate has remained constant since the economic crisis of 2008, hovering around 40%.
+
+```{r}
+ggplot(age_lf_rate_us, aes(x = YEAR, y = in_labfor, color = age_grp)) +
+  geom_line(linewidth = 1) +
+  geom_point() +
+  labs(
+    title = "Total Population In Labor Force by Age Group",
+    x = "Year",
+    y = "Population",
+    color = "Age Group"
+  ) +
+  theme_minimal()
+```
 
 ```{r Total and PR Age Group Visualizaing Unemp, message=FALSE, warning=FALSE}
 ggplot(combined_lf_data, aes(x = YEAR, y = unemp_rate, color = population_group)) +
