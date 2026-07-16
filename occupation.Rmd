@@ -1,0 +1,584 @@
+---
+title: "04_pr_occupation"
+author: "Jorge R. Soldevila Irizarry"
+date: "`r Sys.Date()`"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  fig.width = 12,
+  fig.height = 8)
+
+options(scipen = 999)
+my_cols <- c(
+  "#1b9e77",
+  "#d95f02",
+  "#7570b3",
+  "#e7298a",
+  "#66a61e",
+  "#e6ab02",
+  "#a6761d",
+  "#666666",
+  "#1f78b4",
+  "#b2df8a",
+  "#fb9a99",
+  "#cab2d6"
+)
+```
+
+```{r libraries, message=FALSE, warning=FALSE}
+if (!require("pacman")) install.packages("pacman")
+p_load(tidyverse, DBI, RPostgres,viridis)
+```
+
+```{r db_connection, message=FALSE, warning=FALSE}
+con <- dbConnect(
+  RPostgres::Postgres(),
+  dbname = 'pr_labor_proj',
+  host = "localhost",
+  port = 5432,
+  user = Sys.getenv("DB_USER"),
+  password = Sys.getenv("DB_PASSWORD")
+)
+```
+
+```{r data update, message=FALSE, warning=FALSE}
+# 1. Read the new mini-extract into R
+# Replace with your actual downloaded DDI file name
+#mini_data <- read_csv("usa_00121.csv")
+
+# 2. Connect to your PostgreSQL server (assuming 'con' is your connection)
+# con <- dbConnect(...)
+
+# 3. Write this small dataframe to a temporary table on the server
+#dbWriteTable(
+#  con, 
+#  name = "temp_occ2010_data", 
+#  value = mini_data, 
+#  overwrite = TRUE, 
+#  row.names = FALSE
+#)
+```
+
+```{r new data 1, message=FALSE, warning=FALSE}
+# 4. Add the empty OCC2010 column to your main table first
+#dbExecute(con, "ALTER TABLE data_acs ADD COLUMN occ2010 INTEGER;")
+
+# 5. Update the main table by matching the unique identifiers
+# Note: PostgreSQL automatically converts unquoted column names to lowercase.
+# If your CSV imported the column names in UPPERCASE, you might need to adjust 
+# the 'temp.' prefixes below to match exactly how dbWriteTable created them.
+#update_query <- '
+#  UPDATE data_acs AS main
+#  SET "occ2010" = temp."OCC2010"
+#  FROM temp_occ2010_data AS temp
+#  WHERE main."YEAR" = temp."YEAR"
+#    AND main."SAMPLE" = temp."SAMPLE"
+#    AND main."SERIAL" = temp."SERIAL"
+#    AND main."PERNUM" = temp."PERNUM";
+#'
+
+# 6. Run the update query on the server
+#dbExecute(con, update_query)
+
+# 7. Clean up: Delete the temporary table so it doesn't clutter your database
+#dbExecute(con, "DROP TABLE temp_occ2010_data;")
+```
+
+```{r group data 1, message=FALSE, warning=FALSE}
+#To perform age group analysis we can update our data base tables using SQL syntax within the RStudio environment. 
+
+#First we need to create a new variable to host the recoded age variable. 
+# dbExecute(con, 'ALTER TABLE "data_acs" ALTER COLUMN occ_cat1 TYPE TEXT;')
+
+# Using SQL Update
+# dbExecute(con,r"(
+#          UPDATE "data_acs"
+#          SET occ_cat1 = CASE
+#            WHEN "occ2010" BETWEEN 10 AND 0960 THEN '1. Management, Business, Entertainment & Media'
+#            WHEN "occ2010" BETWEEN 2600 AND 2960 THEN '1. Management, Business, Entertainment & Media'
+#            WHEN "occ2010" BETWEEN 1000 AND 1965 THEN '2. STEM'
+#            WHEN "occ2010" BETWEEN 2000 AND 2550 THEN '3. Education, Community & Social Services'
+#            WHEN "occ2010" BETWEEN 4300 AND 4650 THEN '3. Education, Community & Social Services'
+#            WHEN "occ2010" BETWEEN 3000 AND 3655 THEN '4. Health and Medical'
+#            WHEN "occ2010" BETWEEN 3700 AND 3955 THEN '5. Law Enforcement & Transportation'
+#            WHEN "occ2010" BETWEEN 9000 AND 9420 THEN '5. Law Enforcement & Transportation'
+#            WHEN "occ2010" BETWEEN 4000 AND 4250 THEN '6. Food, Maintenance, Building & Grounds Cleaning'
+#            WHEN "occ2010" BETWEEN 4700 AND 4965 THEN '7. Sales and Related'
+#            WHEN "occ2010" BETWEEN 5000 AND 5940 THEN '8. Administrative and Office Support'
+#            WHEN "occ2010" BETWEEN 6005 AND 7630 THEN '9. Natural Resources, Construction & Maintenance'
+#            WHEN "occ2010" BETWEEN 7700 AND 8965 THEN '10. Production and Material Moving'
+#            WHEN "occ2010" BETWEEN 9500 AND 9750 THEN '10. Production and Material Moving'
+#            WHEN "occ2010" BETWEEN 9800 AND 9830 THEN '11. Military'
+#            WHEN "occ2010" IN (9920, 9999) THEN '12. Unemployed or Not Classified'
+#          END;
+#          )"
+#          )
+```
+
+```{r group data 2, message=FALSE, warning=FALSE}
+# dbExecute(con, 'ALTER TABLE "data_acs" ADD COLUMN occ_cat2 TEXT;')
+
+#Using SQL Update
+# dbExecute(con,r"(
+#          UPDATE "data_acs"
+#          SET occ_cat2 = CASE
+#            WHEN "occ2010" BETWEEN 10 AND 3540 THEN '1. Management & Professional'
+#            WHEN "occ2010" BETWEEN 3600 AND 4650 THEN '2. Service'
+#            WHEN "occ2010" BETWEEN 4700 AND 5940 THEN '3. Sales & Office'
+#            WHEN "occ2010" BETWEEN 6000 AND 6940 THEN '4. Natural Resources, Construction & Maintenance'
+#            WHEN "occ2010" BETWEEN 7000 AND 9750 THEN '5. Production, Transportation & Material Moving'
+#          END;
+#          )"
+#          )
+```
+
+
+```{r Call data, message = FALSE, warning = FALSE}
+#Because we updated the table in our data base, we need to establish a new connection with the updated table. We'll give it the same name and re-write the old connection.  
+acs_01_24 <- tbl(con, "data_acs")
+```
+
+```{r Raw count of occupation, message = FALSE, warning= FALSE}
+occ_raw <- acs_01_24 %>%
+  filter(HISPAN == 2 | HISPAND == 200 | ANCESTR1 == 261,
+         AGE >= 16,
+         EMPSTAT == 1) %>%
+  group_by(YEAR, occ2010) %>%
+  summarise(workers = sum(PERWT, na.rm = TRUE), .groups = "drop") %>%
+  collect() %>%
+  group_by(YEAR) %>%
+  mutate(pc_wrk = workers / sum(workers) * 100) %>%
+  ungroup()
+```
+
+```{r occ_cat1, message=FALSE, warning=FALSE}
+occ_cat1 <- acs_01_24 %>%
+  filter(
+    HISPAN == 2 | HISPAND == 200 | ANCESTR1 == 261,
+    AGE >= 16,
+    EMPSTAT == 1
+  ) %>%
+  group_by(YEAR, occ_cat1) %>%
+  summarise(
+    workers = sum(PERWT, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  collect() %>%
+  group_by(YEAR) %>%
+  mutate(
+    pct_workers = workers / sum(workers) * 100
+  ) %>%
+  ungroup()
+```
+
+```{r plot worker, message=FALSE, warning=FALSE}
+ggplot(
+  occ_cat1,
+  aes(
+    x = YEAR,
+    y = workers,
+    color = occ_cat1
+  )
+) +
+  geom_line(linewidth = 1.2) +
+  geom_point() +
+ # scale_color_manual(values = my_cols) +
+  labs(
+    title = "Puerto Rican Workers by Occupation",
+    subtitle = "Etimated Puerto Rican workers by occupation",
+    x = "Year",
+    y = "Workers",
+    color = "Occupation"
+  ) +
+  geom_vline(xintercept = c(2006,2008,2015,2017,2020),linetype = "dotted",
+             color = "red") +
+  theme_bw()
+```
+
+
+```{r plot pct_worker, message=FALSE, warning=FALSE}
+ggplot(
+  occ_cat1,
+  aes(
+    x = YEAR,
+    y = pct_workers,
+    color = occ_cat1
+  )
+) +
+  geom_line(linewidth = 1.2) +
+  geom_point() +
+  labs(
+    title = "Occupational Distribution of Puerto Rican Workers",
+    subtitle = "Share of employed Puerto Rican workers by occupation",
+    x = "Year",
+    y = "Percent of Workers",
+    color = "Occupation"
+  ) +
+  geom_vline(xintercept = c(2006,2008,2015,2017,2020),linetype = "dotted",
+             color = "red") +
+  theme_bw()
+```
+
+```{r change workers, message=FALSE,warning=FALSE}
+occ_change <- occ_cat1 %>%
+  group_by(occ_cat1) %>%
+  arrange(YEAR) %>%
+  summarise(
+    first_year = first(YEAR),
+    last_year = last(YEAR),
+    first_share = first(pct_workers),
+    last_share = last(pct_workers),
+    pp_change = last_share - first_share,
+    .groups = "drop"
+  ) %>%
+  arrange(desc(pp_change))
+
+occ_change
+```
+
+
+```{r plot change, message=FALSE, warning=FALSE}
+ggplot(
+  occ_change,
+  aes(
+    x = reorder(occ_cat1, pp_change),
+    y = pp_change,
+    fill = pp_change > 0
+  )
+) +
+  geom_col() +
+  coord_flip() +
+  labs(
+    title = "Change in Occupational Composition",
+    subtitle = "Percentage-point change between first and last year",
+    x = NULL,
+    y = "Percentage Point Change"
+  ) +
+  theme_bw() +
+  guides(fill = "none")
+```
+
+```{r index, message=FALSE, warning=FALSE}
+occ_index <- occ_cat1%>%
+  filter(occ_cat1 != "11. Military") %>%
+  group_by(occ_cat1) %>%
+  arrange(YEAR) %>%
+  mutate(
+    index = workers / first(workers) * 100
+  ) %>%
+  ungroup()
+```
+
+```{r plot index, message=FALSE, warning=FALSE}
+ggplot(
+  occ_index,
+  aes(
+    x = YEAR,
+    y = index,
+    color = occ_cat1
+  )
+) +
+  geom_line(linewidth = 1.2) +
+  labs(
+    title = "Occupational Employment Growth Index",
+    subtitle = "First year = 100",
+    x = "Year",
+    y = "Index"
+  ) +
+  theme_bw()
+```
+
+```{r}
+occ_cat2 <- acs_01_24 %>%
+  filter(
+    HISPAN == 2 | HISPAND == 200 | ANCESTR1 == 261,
+    AGE >= 16,
+    EMPSTAT == 1
+  ) %>%
+  group_by(YEAR, occ_cat2) %>%
+  summarise(
+    workers = sum(PERWT, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  collect() %>%
+  group_by(YEAR) %>%
+  mutate(
+    pct_workers = workers / sum(workers) * 100
+  ) %>%
+  ungroup()
+```
+
+```{r}
+ggplot(
+  occ_cat2,
+  aes(
+    x = YEAR,
+    y = workers,
+    color = occ_cat2
+  )
+) +
+  geom_line(linewidth = 1.2) +
+  geom_point() +
+ # scale_color_manual(values = my_cols) +
+  labs(
+    title = "Puerto Rican Workers by Occupation",
+    subtitle = "Etimated Puerto Rican workers by occupation",
+    x = "Year",
+    y = "Workers",
+    color = "Occupation"
+  ) +
+  geom_vline(xintercept = c(2006,2008,2015,2017,2020),linetype = "dotted",
+             color = "red") +
+  theme_bw()
+```
+
+
+```{r}
+ggplot(
+  occ_cat2,
+  aes(
+    x = YEAR,
+    y = pct_workers,
+    color = occ_cat2
+  )
+) +
+  geom_line(linewidth = 1.2) +
+  geom_point() +
+  labs(
+    title = "Occupational Distribution of Puerto Rican Workers",
+    subtitle = "Share of employed Puerto Rican workers by occupation",
+    x = "Year",
+    y = "Percent of Workers",
+    color = "Occupation"
+  ) +
+  geom_vline(xintercept = c(2006,2008,2015,2017,2020),linetype = "dotted",
+             color = "red") +
+  theme_bw()
+```
+
+```{r}
+occ_change <- occ_cat2 %>%
+  group_by(occ_cat2) %>%
+  arrange(YEAR) %>%
+  summarise(
+    first_year = first(YEAR),
+    last_year = last(YEAR),
+    first_share = first(pct_workers),
+    last_share = last(pct_workers),
+    pp_change = last_share - first_share,
+    .groups = "drop"
+  ) %>%
+  arrange(desc(pp_change))
+
+occ_change
+```
+
+
+```{r}
+ggplot(
+  occ_change,
+  aes(
+    x = reorder(occ_cat2, pp_change),
+    y = pp_change,
+    fill = pp_change > 0
+  )
+) +
+  geom_col() +
+  coord_flip() +
+  labs(
+    title = "Change in Occupational Composition",
+    subtitle = "Percentage-point change between first and last year",
+    x = NULL,
+    y = "Percentage Point Change"
+  ) +
+  theme_bw() +
+  guides(fill = "none")
+```
+
+```{r}
+occ_index <- occ_cat2%>%
+  filter(occ_cat2 != "11. Military") %>%
+  group_by(occ_cat2) %>%
+  arrange(YEAR) %>%
+  mutate(
+    index = workers / first(workers) * 100
+  ) %>%
+  ungroup()
+```
+
+```{r}
+ggplot(
+  occ_index,
+  aes(
+    x = YEAR,
+    y = index,
+    color = occ_cat2
+  )
+) +
+  geom_line(linewidth = 1.2) +
+  labs(
+    title = "Occupational Employment Growth Index",
+    subtitle = "First year = 100",
+    x = "Year",
+    y = "Index"
+  ) +
+  theme_bw()
+```
+
+
+```{r}
+occ_cat1_wide <- occ_cat1 %>%
+  pivot_wider(names_from = occ_cat1, values_from = workers)
+```
+
+```{r}
+occ_cat2 <- acs_01_24 %>%
+  filter(HISPAN == 2 | HISPAND == 200 | ANCESTR1 == 261,
+         AGE >= 16,
+         EMPSTAT == 1) %>%
+  group_by(YEAR, occ_cat2) %>%
+  summarise(workers = sum(PERWT, na.rm = TRUE)) %>%
+  collect()
+```
+
+```{r}
+ggplot(occ_cat2, aes(x = YEAR, y = workers, color = occ_cat2)) +
+  geom_line(linewidth = 1) +
+  geom_point() +
+  labs(
+    title = "Labor Force Participation Rate for Puerto Ricans by Age Group",
+    x = "Year",
+    y = "Participation Rate (%)",
+    color = "Occupation"
+  ) +
+  theme_bw()
+```
+
+```{r}
+# 2. Local-Side Analysis: Calculate Percentages
+occupational_trends_data <- acs_01_24 %>%
+  filter(HISPAN == 2 | HISPAND == 200 | ANCESTR1 == 261,
+         AGE >= 16,
+         EMPSTAT == 1) %>%
+  group_by(YEAR, occ_cat1) %>%
+  summarise(workers = sum(PERWT, na.rm = TRUE)) %>%
+  collect()
+
+occupational_trends <- occupational_trends_data %>%
+  group_by(YEAR) %>%
+  mutate(
+    total_workers_in_year = sum(workers),
+    pct_of_workforce = round((workers / total_workers_in_year) * 100, 2)
+  ) %>%
+  ungroup() 
+
+# 3. View the Results
+print(occupational_trends)
+
+```
+
+
+```{r}
+ggplot(occupational_trends, aes(x = YEAR, y = pct_of_workforce, color = occ_cat1)) +
+  geom_line(linewidth = 1) +
+  geom_point() +
+  labs(
+    title = "Labor Force Participation Rate for Puerto Ricans by Age Group",
+    x = "Year",
+    y = "Participation Rate (%)",
+    color = "Occupation"
+  ) +
+  theme_bw()
+```
+
+```{r}
+ind_raw <- acs_01_24 %>%
+  filter(HISPAN == 2 | HISPAND == 200 | ANCESTR1 == 261,
+         AGE >= 16,
+         EMPSTAT == 1) %>%
+  group_by(YEAR, IND) %>%
+  summarise(workers = sum(PERWT, na.rm = TRUE)) %>%
+  collect() %>%
+  group_by(YEAR) %>%
+  mutate(pc_wrk = workers / sum(workers) * 100) %>%
+  ungroup()
+
+```
+
+
+```{r}
+ind_occ_workers <- acs_01_24 %>%
+  filter(
+    HISPAN == 2 | HISPAND == 200 | ANCESTR1 == 261,
+    AGE >= 16,
+    EMPSTAT == 1
+  ) %>%
+  group_by(YEAR, occ_cat1,IND, occ2010) %>%
+  summarise(workers = sum(PERWT, na.rm = TRUE), .groups = "drop") %>%
+  collect()
+```
+
+```{r}
+# Top IND by workers within each occ_cat1
+top_ind <- ind_occ_workers |>
+  group_by(occ_cat1, IND) |>
+  summarise(workers = sum(workers, na.rm = TRUE), .groups = "drop") |>
+  slice_max(workers, n = 5, by = occ_cat1) |>
+  arrange(occ_cat1, desc(workers))
+
+# Top occ2010 by workers within each occ_cat1
+top_occ <- ind_occ_workers |>
+  group_by(occ_cat1, occ2010) |>
+  summarise(workers = sum(workers, na.rm = TRUE), .groups = "drop") |>
+  slice_max(workers, n = 5, by = occ_cat1) |>
+  arrange(occ_cat1, desc(workers))
+
+#top_ind
+```
+
+```{r}
+
+top_ind_by_year <- ind_occ_workers |>
+  group_by(YEAR, occ_cat1, IND) |>
+  summarise(workers = sum(workers, na.rm = TRUE), .groups = "drop") |>
+  #slice_max(workers, n = 3, by = c(YEAR, occ_cat1)) |>
+  arrange(occ_cat1, YEAR, desc(workers))
+
+top_occ_by_year <- ind_occ_workers |>
+  group_by(YEAR, occ_cat1, occ2010) |>
+  summarise(workers = sum(workers, na.rm = TRUE), .groups = "drop") |>
+  #slice_max(workers, n = 3, by = c(YEAR, occ_cat1)) |>
+  arrange(occ_cat1, YEAR, desc(workers))
+
+#top_ind_by_year
+
+###
+#top_occ_by_year
+
+###
+# Example once you have label data frames:
+top_ind_by_year <- top_ind_by_year |>
+  left_join(ind_labels, by = "IND")   # ind_labels: IND + ind_label columns
+
+top_occ_by_year <- top_occ_by_year |>
+  left_join(occ_labels, by = "occ2010")  # occ_labels: occ2010 + occ_label columns
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

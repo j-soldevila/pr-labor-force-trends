@@ -1,0 +1,121 @@
+---
+title: "03_age_adjusted_lfpr_analysis"
+author: "Jorge R. Soldevila Irizarry"
+date: "`r Sys.Date()`"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+options(scipen = 999)
+```
+
+```{r libraries, message=FALSE, warning=FALSE}
+if (!require("pacman")) install.packages("pacman")
+p_load(tidyverse, DBI, RPostgres)
+```
+
+```{r db_connection, message=FALSE, warning=FALSE}
+con <- dbConnect(
+  RPostgres::Postgres(),
+  dbname = 'pr_labor_proj',
+  host = "localhost",
+  port = 5432,
+  user = Sys.getenv("DB_USER"),
+  password = Sys.getenv("DB_PASSWORD")
+)
+
+acs_01_24 <- tbl(con, "data_acs")
+```
+
+```{r Age adjusted LFPR, message=FALSE, warning=FALSE}
+# 2. Server-Side Data Prep and Aggregation
+# This entire block runs on your PostgreSQL server, not in R memory
+server_aggregated_data <- acs_01_24 %>%
+  # Filter for working-age population and valid labor force codes
+  filter(AGE >= 16, LABFORCE %in% c(1, 2), YEAR >= 2001, YEAR <= 2024) %>%
+  mutate(
+    # Use case_when() because cut() does not translate to SQL
+    age_bucket = case_when(
+      AGE >= 16 & AGE <= 24 ~ "16-24",
+      AGE >= 25 & AGE <= 34 ~ "25-34",
+      AGE >= 35 & AGE <= 44 ~ "35-44",
+      AGE >= 45 & AGE <= 54 ~ "45-54",
+      AGE >= 55 & AGE <= 64 ~ "55-64",
+      AGE >= 65 ~ "65+"
+    ),
+    
+    # Identify groups
+    group = ifelse(HISPAN == 2 | HISPAND == 200 | ANCESTR1 == 261, "Puerto Rican", "All Others"),
+    
+    # Create a weighted labor force variable for easy SQL summing
+    # If in labor force (2), use their weight. If not (1), assign 0.
+    weighted_lf = ifelse(LABFORCE == 2, PERWT, 0)
+  ) %>%
+  
+  # Group and summarize on the server to dramatically shrink the data size
+  group_by(YEAR, group, age_bucket) %>%
+  summarise(
+    pop_in_bucket = sum(PERWT, na.rm = TRUE),
+    lf_in_bucket = sum(weighted_lf, na.rm = TRUE),
+    .groups = 'drop'
+  ) %>%
+  
+  # EXECUTE THE QUERY: Pull this small, summarized dataframe into local R memory
+  collect()
+```
+
+
+```{r Age adjusted wrangling, message=FALSE, warning=FALSE}
+# 3. Local-Side Analysis (Age Adjustment)
+# Now that we have the summarized data locally, we can run the math instantly
+
+# A. Calculate standard population weights (Pooled 2001-2024 US Population)
+standard_pop <- server_aggregated_data %>%
+  group_by(age_bucket) %>%
+  summarise(total_people = sum(pop_in_bucket)) %>%
+  mutate(std_weight = total_people / sum(total_people)) %>%
+  select(age_bucket, std_weight)
+
+# B. Calculate Age-Specific Rates for each group/year
+age_specific_rates <- server_aggregated_data %>%
+  mutate(age_specific_lfpr = lf_in_bucket / pop_in_bucket)
+
+# C. Merge weights and calculate the final Crude and Adjusted rates
+final_results <- age_specific_rates %>%
+  left_join(standard_pop, by = "age_bucket") %>%
+  group_by(YEAR, group) %>%
+  summarise(
+    # Crude Rate: (Total in LF) / (Total Pop)
+    crude_lfpr = sum(lf_in_bucket) / sum(pop_in_bucket),
+    
+    # Age-Adjusted Rate: Sum of (Age-Specific Rate * Standard Weight)
+    adjusted_lfpr = sum(age_specific_lfpr * std_weight),
+    
+    total_pop_16plus = sum(pop_in_bucket),
+    .groups = 'drop'
+  ) %>%
+  # Format percentages
+  mutate(
+    crude_lfpr = round(crude_lfpr * 100, 2),
+    adjusted_lfpr = round(adjusted_lfpr * 100, 2)
+  ) %>%
+  arrange(YEAR, group)
+
+print(final_results)
+```
+
+```{r Age adjusted analysis, message=FALSE,warning=FALSE}
+# 4. Create the final comparison table
+comparison_table <- final_results %>%
+  select(YEAR, group, adjusted_lfpr) %>%
+  pivot_wider(names_from = group, values_from = adjusted_lfpr) %>%
+  mutate(gap = `Puerto Rican` - `All Others`)
+
+print(comparison_table)
+```
+
+
+
+
+
