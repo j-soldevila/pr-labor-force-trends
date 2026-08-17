@@ -1,0 +1,528 @@
+---
+title: "01_total_labor_force"
+author: "Jorge R. Soldevila Irizarry"
+date: "`r Sys.Date()`"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+options(scipen = 999)
+selected_years <- c(2005, 2010, 2015, 2020)
+
+# Source central setup file
+source("00_project_setup.R")
+```
+
+# Puerto Rican Labor Force
+
+## Estimate the Puerto Rican population in the Labor Force
+
+```{r Total Puerto Ricans in Labor Force, message=FALSE,warning=FALSE}
+
+# We use the function in 00_project_setup to calculate the total Puerto Rican population in the labor force. 
+
+# Puerto Ricans in the US
+pr_lf_rate_us <- calculate_lfpr(data_acs, HISPAN == 2 | HISPAND == 200 | 
+                                  ANCESTR1 == 261)
+```
+
+```{r Visualize Total Puerto Ricans in Labor Force, message=FALSE,warning=FALSE}
+
+# We can now visualize the Puerto Rican population in the labor force since 2001.
+
+ggplot() +
+  geom_line(data = pr_lf_rate_us, aes(x = YEAR, y = in_labfor, 
+                                      color = "PR in US"), size = 1) +
+  geom_point(data = pr_lf_rate_us, aes(x = YEAR, y = in_labfor, 
+                                       color = "PR in US")) +
+  important_years_lines +
+  my_theme +
+  labs(
+    title = "Trends in Labor Force Participation 2001-2024",
+    x = "Year",
+    y = "Estimated Population"
+  )
+```
+
+### Percent Change in Puerto Rican Force
+
+```{r Calculate Change 2001-2024, message=FALSE, warning=FALSE}
+
+pr_lf_rate_us |>
+  arrange(YEAR) |>
+  summarise(
+    diff  = last(in_labfor) - first(in_labfor),
+    pct_change = (last(in_labfor) - first(in_labfor)) / first(in_labfor) * 100
+  )
+```
+
+# Compare with Total Population and Other Groups
+
+## Estimate for Total Population, Hispanics, Other Race Groups, and Hispanic Origin Groups
+
+```{r Estimates for populations in Labor Force, message=FALSE,warning=FALSE}
+
+# We can use the same function in 00_project_setup to obtain estimates for all
+# other groups of interest
+
+# 1. Total U.S. Population
+lf_rate_us <- calculate_lfpr(data_acs)
+
+# 2. Non-Hispanics in US
+non_hisp_lf_rate_us <- calculate_lfpr(data_acs, HISPAN == 0)
+
+# 3. Hispanics in US
+hisp_lf_rate_us <- calculate_lfpr(data_acs, HISPAN > 0 & HISPAN < 9)
+
+# 4. Non-Hispanic Race Groups in US
+lf_by_race <- data_acs |>
+  filter(
+    HISPAN == 0,
+    AGE >= 16, EMPSTAT != 0, !(EMPSTATD %in% 13:15), GQ != 3,
+    RACE < 8
+  ) |> 
+  mutate(race_cat = case_when(
+    RACE == 1 ~ "01. White",
+    RACE == 2 ~ "02. Black/African American",
+    RACE == 3 ~ "03. AIAN",
+    RACE >= 4 & RACE <= 6 ~ "04. Asian/PI",
+    RACE == 7 ~ "05. Other",
+    TRUE ~ NA
+  )
+         ) |> 
+  filter(!is.na(race_cat)) |>
+  group_by(YEAR, race_cat) |>
+  summarise(
+    total_pop = sum(ifelse(EMPSTAT %in% c(1, 2, 3), PERWT, 0), na.rm = TRUE),
+    in_labfor = sum(ifelse(EMPSTAT %in% c(1, 2), PERWT, 0), na.rm = TRUE),
+    out_labfor = sum(ifelse(EMPSTAT == 3, PERWT, 0), na.rm = TRUE),
+    unemp     = sum(ifelse(EMPSTAT == 2, PERWT, 0), na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  mutate(
+    labfor_rate    = (in_labfor / total_pop) * 100,
+    out_labfor_pct = (out_labfor / total_pop) * 100,
+    unemp_rate     = (unemp / in_labfor) * 100,
+    etop_ratio = (in_labfor-unemp)/total_pop * 100
+  ) |>
+  collect()
+
+  
+
+# 5. Hispanic Origin Groups in US
+lf_by_hisp_ori <- data_acs |>
+  filter(
+    HISPAN > 0 & HISPAN < 9,
+    AGE >= 16, EMPSTAT != 0, !(EMPSTATD %in% 13:15), GQ != 3
+  ) |> 
+  mutate(hisp_ori = case_when(
+    HISPAND >= 100 & HISPAND <= 107 ~ "Mexican",
+    HISPAND == 200 ~ "Puerto Rican",
+    HISPAND == 300 ~ "Cuban",
+    HISPAND >= 400 & HISPAND <= 417 ~ "Central American",
+    HISPAND >= 420 & HISPAND <= 429 ~ "South American",
+    HISPAND == 460 ~ "Dominican",
+    TRUE ~ NA
+  )
+  ) |> 
+  filter(!is.na(hisp_ori)) |>
+  group_by(YEAR, hisp_ori) |>
+  summarise(
+    total_pop = sum(ifelse(EMPSTAT %in% c(1, 2, 3), PERWT, 0), na.rm = TRUE),
+    in_labfor = sum(ifelse(EMPSTAT %in% c(1, 2), PERWT, 0), na.rm = TRUE),
+    out_labfor = sum(ifelse(EMPSTAT == 3, PERWT, 0), na.rm = TRUE),
+    unemp     = sum(ifelse(EMPSTAT == 2, PERWT, 0), na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  mutate(
+    labfor_rate    = (in_labfor / total_pop) * 100,
+    out_labfor_pct = (out_labfor / total_pop) * 100,
+    unemp_rate     = (unemp / in_labfor) * 100,
+    etop_ratio = (in_labfor-unemp)/total_pop * 100
+  ) |>
+  collect()
+
+```
+
+### We can now visualize Estimates for Labor Force for the total US population and other race and ethnicity groups
+
+#### Total Population vs Hispanics vs Non-Hispanics
+
+```{r Visualize Total US labor Force with Hispanics and Non Hispanics, message=FALSE, warning=FALSE}
+
+ggplot() +
+  geom_line(data = lf_rate_us, 
+            aes(x = YEAR, y = in_labfor, color = "Total"), size = 1) +
+  geom_point(data = lf_rate_us, 
+             aes(x = YEAR, y = in_labfor, color = "Total")) +
+  
+  geom_line(data = hisp_lf_rate_us, 
+            aes(x = YEAR, y = in_labfor, color = "Hispanics"), size = 1) +
+  geom_point(data = hisp_lf_rate_us, 
+             aes(x = YEAR, y = in_labfor, color = "Hispanics")) +
+  
+  geom_line(data = non_hisp_lf_rate_us, 
+            aes(x = YEAR, y = in_labfor, color = "Non-Hispanics"), size = 1) +
+  geom_point(data = non_hisp_lf_rate_us, 
+             aes(x = YEAR, y = in_labfor, color = "Non-Hispanics"), linetype = 2) +
+  
+  important_years_lines +
+  my_theme +
+  scale_color_manual(values = c("Total" = "blue", 
+                                "Hispanics" = "orange", 
+                                "Non-Hispanics" = "darkgreen")) +
+  scale_y_continuous(labels = label_number(scale = 1e-6, suffix = "M")) +
+  labs(
+    title = "Trends in Labor Force Participation 2001-2024",
+    x = "Year",
+    y = "Estimate"
+  )
+
+```
+
+#### Race Categories vs Puerto Ricans
+
+```{r Visualize Labor FOrce for Race Categories, message=FALSE, warning=FALSE}
+
+ggplot() +
+  geom_line(data = lf_by_race, 
+            aes(x = YEAR, y = in_labfor, color = race_cat), size = 1) +
+  geom_point(data = lf_by_race, 
+             aes(x = YEAR, y = in_labfor, color = race_cat)) +
+  
+  geom_line(data = pr_lf_rate_us, aes(x = YEAR, y = in_labfor, 
+                                      color = "Puerto Rican"), size = 1) +
+  geom_point(data = pr_lf_rate_us, aes(x = YEAR, y = in_labfor, 
+                                       color = "Puerto Rican")) +
+
+  important_years_lines +
+  my_theme +
+  # scale_color_manual(values = c("Total" = "blue", 
+                                # "Hispanics" = "orange", 
+                                # "Non-Hispanics" = "darkgreen")) +
+  scale_y_continuous(labels = label_number(scale = 1e-6, suffix = "M")) +
+  labs(
+    title = "Trends in Labor Force Participation 2001-2024",
+    x = "Year",
+    y = "Estimate"
+  )
+
+```
+
+#### Hispanic Origin Groups
+
+```{r Visualize Labor Force for Hispanic Origin, message=FALSE, warning=FALSE}
+
+ggplot() +
+  geom_line(data = lf_by_hisp_ori, 
+            aes(x = YEAR, y = in_labfor, color = hisp_ori), size = 1) +
+  geom_point(data = lf_by_hisp_ori, 
+             aes(x = YEAR, y = in_labfor, color = hisp_ori)) +
+  important_years_lines +
+  my_theme +
+  # scale_color_manual(values = c("Total" = "blue", 
+  # "Hispanics" = "orange", 
+  # "Non-Hispanics" = "darkgreen")) +
+  scale_y_continuous(labels = label_number(scale = 1e-6, suffix = "M")) +
+  labs(
+    title = "Trends in Labor Force Participation 2001-2024",
+    x = "Year",
+    y = "Estimate"
+  )
+```
+
+#### Change among Race and Ethnicity Categories over time
+
+We can calculate the raw changes and percent change in Labor Force for all groups and compare to Puerto Ricans.
+
+```{r Change calculations for all Groups, message=FALSE, warning=FALSE}
+
+change_summary <- bind_rows(
+  pr_lf_rate_us |>
+    arrange(YEAR) |>
+    summarise(diff = last(in_labfor) - first(in_labfor),
+              pct_change = (last(in_labfor) - first(in_labfor)) / first(in_labfor) * 100) |>
+    mutate(group = "Puerto Rican"),
+  
+  lf_rate_us |>
+    arrange(YEAR) |>
+    summarise(diff = last(in_labfor) - first(in_labfor),
+              pct_change = (last(in_labfor) - first(in_labfor)) / first(in_labfor) * 100) |>
+    mutate(group = "Total U.S."),
+  
+  non_hisp_lf_rate_us |>
+    arrange(YEAR) |>
+    summarise(diff = last(in_labfor) - first(in_labfor),
+              pct_change = (last(in_labfor) - first(in_labfor)) / first(in_labfor) * 100) |>
+    mutate(group = "Non-Hispanic"),
+  
+  hisp_lf_rate_us |>
+    arrange(YEAR) |>
+    summarise(diff = last(in_labfor) - first(in_labfor),
+              pct_change = (last(in_labfor) - first(in_labfor)) / first(in_labfor) * 100) |>
+    mutate(group = "Hispanic"),
+  
+  lf_by_race |>
+    group_by(race_cat) |>
+    arrange(YEAR) |>
+    summarise(diff = last(in_labfor) - first(in_labfor),
+              pct_change = (last(in_labfor) - first(in_labfor)) / first(in_labfor) * 100) |>
+    rename(group = race_cat),
+  
+  lf_by_hisp_ori |>
+    group_by(hisp_ori) |>
+    arrange(YEAR) |>
+    summarise(diff = last(in_labfor) - first(in_labfor),
+              pct_change = (last(in_labfor) - first(in_labfor)) / first(in_labfor) * 100) |>
+    rename(group = hisp_ori)
+) |>
+  select(group, diff, pct_change)
+
+ggplot(change_summary, aes(x = pct_change, y = reorder(group, pct_change))) +
+  geom_col() +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "grey40") +
+  my_theme +
+  labs(
+    title = "Percent Change in Labor Force Participation, 2001–2024",
+    x = "Percent Change (%)",
+    y = NULL
+  )
+```
+
+## Estimate Puerto Rican Labor Force by Sex
+
+```{r Puerto Ricans in Labor Force by Sex}
+pr_lf_by_sex <- data_acs %>%
+    filter(HISPAN == 2 | HISPAND == 200 | ANCESTR1 == 261,
+           AGE >= 16, EMPSTAT != 0, !(EMPSTATD %in% 13:15), GQ != 3,
+           SEX != 9) %>%
+    group_by(YEAR,SEX) %>%
+    summarise(
+      total_pop = sum(ifelse(EMPSTAT %in% c(1, 2, 3), PERWT, 0), na.rm = TRUE),
+      in_labfor = sum(ifelse(EMPSTAT %in% c(1, 2), PERWT, 0), na.rm = TRUE),
+      out_labfor = sum(ifelse(EMPSTAT == 3, PERWT, 0), na.rm = TRUE),
+      unemp = sum(ifelse(EMPSTAT == 2, PERWT, 0), na.rm = TRUE),
+      .groups = "drop"
+    ) %>%
+    mutate(
+      sex = case_when(SEX == 1 ~ "Male",
+                      SEX == 2 ~ "Female"),
+      labfor_rate = (in_labfor / total_pop) * 100,
+      out_labfor_pct = (out_labfor / total_pop) * 100,
+      unemp_rate = (unemp / in_labfor) * 100,
+      etop_ratio = (in_labfor-unemp)/total_pop * 100
+    ) %>%
+    collect()
+```
+
+### Puerto Ricans in the Labor Force by Sex
+
+```{r Distribution of Puerto Ricans by sex, message=FALSE, warning=FALSE}
+# Distribution of Puerto Ricans by sex
+pr_lf_by_sex <- pr_lf_by_sex |>
+  group_by(YEAR) |>
+  mutate(pct = (total_pop/sum(total_pop)*100))%>%
+  ungroup()
+
+ggplot(pr_lf_by_sex, aes(x = YEAR, y = pct, fill = sex)) +
+  geom_col(position = "dodge") +
+  labs(title = "Population Percentage by Sex Over Time",
+    x = "Year",
+    y = "Percentage (%)",
+    fill = "Sex"
+  ) +
+  # A clean, professional background theme
+  my_theme
+  
+```
+
+### Percent Change in Puerto Rican Force by sex
+
+```{r Calculate Change by sex 2001-2024, message=FALSE, warning=FALSE}
+
+pr_lf_by_sex |>
+  arrange(YEAR) |>
+  group_by(sex) |>
+  summarise(
+    diff  = last(in_labfor) - first(in_labfor),
+    pct_change = (last(in_labfor) - first(in_labfor)) / first(in_labfor) * 100
+  )
+```
+
+### Visualize trends by sex for Puerto Ricans
+
+```{r}
+
+# We can now visualize the Puerto Rican population in the labor force by sex since 2001.
+
+ggplot() +
+  geom_line(data = pr_lf_by_sex, aes(x = YEAR, y = in_labfor, 
+                                      color = sex)) +
+  geom_point(data = pr_lf_by_sex, aes(x = YEAR, y = in_labfor, 
+                                      color = sex)) +
+  important_years_lines +
+  my_theme +
+  scale_y_continuous(labels = label_number(scale = 1e-6, suffix = "M")) +
+  labs(
+    title = "Trends in Labor Force Participation by Sex 2001-2024",
+    x = "Year",
+    y = "Estimated Population"
+  )
+```
+
+## Estimate Puerto Rican Labor Force by Place of Birth
+
+```{r Puerto Ricans in Labor Force by place of birth, message=FALSE,warning=FALSE}
+pr_lf_by_bpl <- data_acs %>%
+    filter(HISPAN == 2 | HISPAND == 200 | ANCESTR1 == 261,
+           AGE >= 16, EMPSTAT != 0, !(EMPSTATD %in% 13:15), GQ != 3) %>%
+    mutate(
+      plc_bth =  case_when(
+        BPL <= 56 ~ "US",
+        BPL == 110 ~ "Puerto Rico",
+        TRUE ~ NA
+      )) %>%
+    filter(!is.na(plc_bth)) %>%
+    group_by(YEAR,plc_bth) %>%
+    summarise(
+      total_pop = sum(ifelse(EMPSTAT %in% c(1, 2, 3), PERWT, 0), na.rm = TRUE),
+      in_labfor = sum(ifelse(EMPSTAT %in% c(1, 2), PERWT, 0), na.rm = TRUE),
+      out_labfor = sum(ifelse(EMPSTAT == 3, PERWT, 0), na.rm = TRUE),
+      unemp = sum(ifelse(EMPSTAT == 2, PERWT, 0), na.rm = TRUE),
+      .groups = "drop"
+    ) %>%
+    mutate(
+      labfor_rate = (in_labfor / total_pop) * 100,
+      out_labfor_pct = (out_labfor / total_pop) * 100,
+      unemp_rate = (unemp / in_labfor) * 100,
+      etop_ratio = (in_labfor - unemp) / total_pop * 100
+    ) %>%
+    collect()
+```
+
+### Visualize trends by place of birth for Puerto Ricans
+
+```{r}
+
+# We can now visualize the Puerto Rican population in the labor force by sex since 2001.
+
+ggplot() +
+  geom_line(data = pr_lf_by_bpl, aes(x = YEAR, y = in_labfor, 
+                                      color = plc_bth)) +
+  geom_point(data = pr_lf_by_bpl, aes(x = YEAR, y = in_labfor, 
+                                      color = plc_bth)) +
+  important_years_lines +
+  my_theme +
+  scale_y_continuous(labels = label_number(scale = 1e-6, suffix = "M")) +
+  labs(
+    title = "Trends in Labor Force Participation by Place of Birth 2001-2024",
+    x = "Year",
+    y = "Estimated Population"
+  )
+```
+
+### Puerto Ricans in the Labor Force by Place of Birth
+
+```{r Distribution of Puerto Ricans by Place of Birth , message=FALSE, warning=FALSE}
+# Distribution of Puerto Ricans by Place of Birth
+
+pr_lf_by_bpl <- pr_lf_by_bpl |>
+  group_by(YEAR) |>
+  mutate(pct = (total_pop/sum(total_pop)*100))%>%
+  ungroup()
+
+ggplot(pr_lf_by_bpl, aes(x = YEAR, y = pct, fill = plc_bth)) +
+  geom_col(position = "dodge") +
+  labs(title = "Population Percentage by Place of Birth Over Time",
+    x = "Year",
+    y = "Percentage (%)",
+    fill = "Sex"
+  ) +
+  # A clean, professional background theme
+  my_theme
+  
+```
+
+### Percent Change in Puerto Rican Force by Place of Birth
+
+```{r Calculate Change by sex 2001-2024, message=FALSE, warning=FALSE}
+
+pr_lf_by_bpl |>
+  arrange(YEAR) |>
+  group_by(plc_bth) |>
+  summarise(
+    diff  = last(in_labfor) - first(in_labfor),
+    pct_change = (last(in_labfor) - first(in_labfor)) / first(in_labfor) * 100
+  )
+```
+
+<!-- ## Estimate Puerto Rican populaiton in Labor Force by State -->
+
+<!-- ```{r} -->
+
+<!-- pr_lf_by_state <- data_acs %>% -->
+
+<!--   filter( -->
+
+<!--     (HISPAN == 2 | HISPAND == 200 | ANCESTR1 == 261), -->
+
+<!--     AGE >= 16,  -->
+
+<!--     EMPSTAT != 0,  -->
+
+<!--     !(EMPSTATD %in% 13:15),  -->
+
+<!--     GQ != 3, -->
+
+<!--     SEX %in% c(1, 2) -->
+
+<!--   ) %>% -->
+
+<!--   mutate( -->
+
+<!--     sex = ifelse(SEX == 1, "Male", "Female") -->
+
+<!--   ) %>% -->
+
+<!--   filter(!is.na(STATEFIP)) %>% -->
+
+<!--   group_by(YEAR, STATEFIP, sex) %>% -->
+
+<!--   summarise( -->
+
+<!--     total_pop  = sum(ifelse(EMPSTAT %in% c(1, 2, 3), PERWT, 0), na.rm = TRUE), -->
+
+<!--     in_labfor  = sum(ifelse(EMPSTAT %in% c(1, 2), PERWT, 0), na.rm = TRUE), -->
+
+<!--     out_labfor = sum(ifelse(EMPSTAT == 3, PERWT, 0), na.rm = TRUE), -->
+
+<!--     unemp      = sum(ifelse(EMPSTAT == 2, PERWT, 0), na.rm = TRUE), -->
+
+<!--     .groups    = "drop" -->
+
+<!--   ) %>% -->
+
+<!--   mutate( -->
+
+<!--     labfor_rate    = ifelse(total_pop == 0, NA, (in_labfor / total_pop) * 100), -->
+
+<!--     out_labfor_pct = ifelse(total_pop == 0, NA, (out_labfor / total_pop) * 100), -->
+
+<!--     unemp_rate     = ifelse(in_labfor == 0, NA, (unemp / in_labfor) * 100) -->
+
+<!--   ) %>% -->
+
+<!--   collect() -->
+
+<!-- ``` -->
+
+<!-- ```{r} -->
+
+<!-- pr_lf_by_state$st_name <- fips_info(pr_lf_by_state$STATEFIP)$full -->
+
+<!-- ``` -->
+
+<!-- ```{r} -->
+
+<!-- ``` -->

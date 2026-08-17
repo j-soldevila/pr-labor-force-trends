@@ -1,0 +1,284 @@
+---
+title: "06_ind_occ_intersection"
+author: "Jorge R. Soldevila Irizarry"
+date: "`r Sys.Date()`"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, fig.width = 14, fig.height = 10)
+options(scipen = 999)
+
+# Source central setup file containing DB connection and my_theme
+source("00_project_setup.R")
+```
+
+```{r}
+
+# 1. Query the database, joining IND and mutating OCC simultaneously
+ind_occ_data <- data_acs %>%
+  filter(
+    HISPAN == 2 | HISPAND == 200 | ANCESTR1 == 261, 
+    AGE >= 16, 
+    EMPSTAT == 1
+  ) %>%
+  # Create industry categories
+   mutate(ind_sector = case_when(
+      (YEAR >= 2003)&(IND >= 0170  & IND <= 0290)  ~ "01. Agriculture, Forestry, Fishing & Hunting",
+      (YEAR >= 2003)&(IND >= 0370  & IND <= 0490)  ~ "02. Mining, Quarrying, & Oil/Gas Extraction",
+      (YEAR >= 2003)&(IND >= 0570  & IND <= 0690)  ~ "03. Utilities",
+      (YEAR >= 2003)&(IND == 0770)                ~ "04. Construction",
+      (YEAR >= 2003)&(IND >= 1070 & IND <= 3990) ~ "05. Manufacturing",
+      (YEAR >= 2003)&(IND >= 4070 & IND <= 4590) ~ "06. Wholesale Trade",
+      (YEAR >= 2003)&(IND >= 4670 & IND <= 5790) ~ "07. Retail Trade",
+      (YEAR >= 2003)&(IND >= 6070 & IND <= 6390) ~ "08. Transportation & Warehousing",
+      (YEAR >= 2003)&(IND >= 6470 & IND <= 6790) ~ "09. Information",
+      (YEAR >= 2003)&(IND >= 6870 & IND <= 6990) ~ "10. Finance & Insurance",
+      (YEAR >= 2003)&(IND >= 7070 & IND <= 7190) ~ "11. Real Estate & Rental/Leasing",
+      (YEAR >= 2003)&(IND >= 7270 & IND <= 7490) ~ "12. Professional, Scientific, & Tech Services",
+      (YEAR >= 2003)&(IND >= 7570 & IND <= 7790) ~ "13. Administrative, Support, & Waste Mgmt",
+      (YEAR >= 2003)&(IND >= 7860 & IND <= 7890) ~ "14. Educational Services",
+      (YEAR >= 2003)&(IND >= 7970 & IND <= 8470) ~ "15. Health Care & Social Assistance",
+      (YEAR >= 2003)&(IND >= 8560 & IND <= 8590) ~ "16. Arts, Entertainment, & Recreation",
+      (YEAR >= 2003)&(IND >= 8660 & IND <= 8690) ~ "17. Accommodation & Food Services",
+      (YEAR >= 2003)&(IND >= 8770 & IND <= 9290) ~ "18. Other Services (Except Public Admin)",
+      (YEAR >= 2003)&(IND >= 9370 & IND <= 9590) ~ "19. Public Administration",
+      (YEAR >= 2003)&(IND >= 9670 & IND <= 9870) ~ "20. Military",
+      (YEAR <= 2003)&(IND >= 17  & IND <= 29)  ~ "01. Agriculture, Forestry, Fishing & Hunting",
+      (YEAR <= 2003)&(IND >= 37  & IND <= 49)  ~ "02. Mining, Quarrying, & Oil/Gas Extraction",
+      (YEAR <= 2003)&(IND >= 57  & IND <= 69)  ~ "03. Utilities",
+      (YEAR <= 2003)&(IND == 77)                ~ "04. Construction",
+      (YEAR <= 2003)&(IND >= 107 & IND <= 399) ~ "05. Manufacturing",
+      (YEAR <= 2003)&(IND >= 407 & IND <= 459) ~ "06. Wholesale Trade",
+      (YEAR <= 2003)&(IND >= 467 & IND <= 579) ~ "07. Retail Trade",
+      (YEAR <= 2003)&(IND >= 607 & IND <= 639) ~ "08. Transportation & Warehousing",
+      (YEAR <= 2003)&(IND >= 647 & IND <= 679) ~ "09. Information",
+      (YEAR <= 2003)&(IND >= 687 & IND <= 699) ~ "10. Finance & Insurance",
+      (YEAR <= 2003)&(IND >= 707 & IND <= 719) ~ "11. Real Estate & Rental/Leasing",
+      (YEAR <= 2003)&(IND >= 727 & IND <= 749) ~ "12. Professional, Scientific, & Tech Services",
+      (YEAR <= 2003)&(IND >= 757 & IND <= 779) ~ "13. Administrative, Support, & Waste Mgmt",
+      (YEAR <= 2003)&(IND >= 786 & IND <= 789) ~ "14. Educational Services",
+      (YEAR <= 2003)&(IND >= 797 & IND <= 847) ~ "15. Health Care & Social Assistance",
+      (YEAR <= 2003)&(IND >= 856 & IND <= 859) ~ "16. Arts, Entertainment, & Recreation",
+      (YEAR <= 2003)&(IND >= 866 & IND <= 869) ~ "17. Accommodation & Food Services",
+      (YEAR <= 2003)&(IND >= 877 & IND <= 929) ~ "18. Other Services (Except Public Admin)",
+      (YEAR <= 2003)&(IND >= 937 & IND <= 959) ~ "19. Public Administration",
+      (YEAR <= 2003)&(IND >= 967 & IND <= 987) ~ "20. Military",
+      TRUE ~ "21. Unclassified / Not in Labor Force"
+    )) %>%
+  # Create occupational categories
+  mutate(
+    occ_cat1 = case_when(
+      (occ2010 >= 10 & occ2010 <= 960) | (occ2010 >= 2600 & occ2010 <= 2960) ~ "1. Management & Media",
+      occ2010 >= 1000 & occ2010 <= 1965 ~ "2. STEM",
+      (occ2010 >= 2000 & occ2010 <= 2550) | (occ2010 >= 4300 & occ2010 <= 4650) ~ "3. Education & Social",
+      occ2010 >= 3000 & occ2010 <= 3655 ~ "4. Health & Medical",
+      (occ2010 >= 3700 & occ2010 <= 3955) | (occ2010 >= 9000 & occ2010 <= 9420) ~ "5. Law Enf. & Transit",
+      occ2010 >= 4000 & occ2010 <= 4250 ~ "6. Food & Maintenance",
+      occ2010 >= 4700 & occ2010 <= 4965 ~ "7. Sales",
+      occ2010 >= 5000 & occ2010 <= 5940 ~ "8. Admin & Support",
+      occ2010 >= 6005 & occ2010 <= 7630 ~ "9. Nat. Resources & Const",
+      (occ2010 >= 7700 & occ2010 <= 8965) | (occ2010 >= 9500 & occ2010 <= 9750) ~ "10. Production",
+      occ2010 >= 9800 & occ2010 <= 9830 ~ "11. Military",
+      TRUE ~ "12. Unclassified"
+    ),
+    # Handle any missing industry sectors
+    ind_sector = ifelse(is.na(ind_sector), "21. Unclassified / Not in Labor Force", ind_sector)
+  ) %>%
+  
+  # Group by Year, Industry, AND Occupation
+  group_by(YEAR, ind_sector, occ_cat1) %>%
+  summarise(
+    workers = sum(PERWT, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  collect()
+```
+
+```{r}
+temp_ind_occ_data <- data_acs %>%
+  filter(
+    HISPAN == 2 | HISPAND == 200 | ANCESTR1 == 261, 
+    AGE >= 16, 
+    EMPSTAT == 1
+  ) %>%
+  # Create industry categories
+   mutate(ind_sector = case_when(
+      (YEAR >= 2003)&(IND >= 0170  & IND <= 0290)  ~ "01. Agriculture, Forestry, Fishing & Hunting",
+      (YEAR >= 2003)&(IND >= 0370  & IND <= 0490)  ~ "02. Mining, Quarrying, & Oil/Gas Extraction",
+      (YEAR >= 2003)&(IND >= 0570  & IND <= 0690)  ~ "03. Utilities",
+      (YEAR >= 2003)&(IND == 0770)                ~ "04. Construction",
+      (YEAR >= 2003)&(IND >= 1070 & IND <= 3990) ~ "05. Manufacturing",
+      (YEAR >= 2003)&(IND >= 4070 & IND <= 4590) ~ "06. Wholesale Trade",
+      (YEAR >= 2003)&(IND >= 4670 & IND <= 5790) ~ "07. Retail Trade",
+      (YEAR >= 2003)&(IND >= 6070 & IND <= 6390) ~ "08. Transportation & Warehousing",
+      (YEAR >= 2003)&(IND >= 6470 & IND <= 6790) ~ "09. Information",
+      (YEAR >= 2003)&(IND >= 6870 & IND <= 6990) ~ "10. Finance & Insurance",
+      (YEAR >= 2003)&(IND >= 7070 & IND <= 7190) ~ "11. Real Estate & Rental/Leasing",
+      (YEAR >= 2003)&(IND >= 7270 & IND <= 7490) ~ "12. Professional, Scientific, & Tech Services",
+      (YEAR >= 2003)&(IND >= 7570 & IND <= 7790) ~ "13. Administrative, Support, & Waste Mgmt",
+      (YEAR >= 2003)&(IND >= 7860 & IND <= 7890) ~ "14. Educational Services",
+      (YEAR >= 2003)&(IND >= 7970 & IND <= 8470) ~ "15. Health Care & Social Assistance",
+      (YEAR >= 2003)&(IND >= 8560 & IND <= 8590) ~ "16. Arts, Entertainment, & Recreation",
+      (YEAR >= 2003)&(IND >= 8660 & IND <= 8690) ~ "17. Accommodation & Food Services",
+      (YEAR >= 2003)&(IND >= 8770 & IND <= 9290) ~ "18. Other Services (Except Public Admin)",
+      (YEAR >= 2003)&(IND >= 9370 & IND <= 9590) ~ "19. Public Administration",
+      (YEAR >= 2003)&(IND >= 9670 & IND <= 9870) ~ "20. Military",
+      (YEAR <= 2003)&(IND >= 17  & IND <= 29)  ~ "01. Agriculture, Forestry, Fishing & Hunting",
+      (YEAR <= 2003)&(IND >= 37  & IND <= 49)  ~ "02. Mining, Quarrying, & Oil/Gas Extraction",
+      (YEAR <= 2003)&(IND >= 57  & IND <= 69)  ~ "03. Utilities",
+      (YEAR <= 2003)&(IND == 77)                ~ "04. Construction",
+      (YEAR <= 2003)&(IND >= 107 & IND <= 399) ~ "05. Manufacturing",
+      (YEAR <= 2003)&(IND >= 407 & IND <= 459) ~ "06. Wholesale Trade",
+      (YEAR <= 2003)&(IND >= 467 & IND <= 579) ~ "07. Retail Trade",
+      (YEAR <= 2003)&(IND >= 607 & IND <= 639) ~ "08. Transportation & Warehousing",
+      (YEAR <= 2003)&(IND >= 647 & IND <= 679) ~ "09. Information",
+      (YEAR <= 2003)&(IND >= 687 & IND <= 699) ~ "10. Finance & Insurance",
+      (YEAR <= 2003)&(IND >= 707 & IND <= 719) ~ "11. Real Estate & Rental/Leasing",
+      (YEAR <= 2003)&(IND >= 727 & IND <= 749) ~ "12. Professional, Scientific, & Tech Services",
+      (YEAR <= 2003)&(IND >= 757 & IND <= 779) ~ "13. Administrative, Support, & Waste Mgmt",
+      (YEAR <= 2003)&(IND >= 786 & IND <= 789) ~ "14. Educational Services",
+      (YEAR <= 2003)&(IND >= 797 & IND <= 847) ~ "15. Health Care & Social Assistance",
+      (YEAR <= 2003)&(IND >= 856 & IND <= 859) ~ "16. Arts, Entertainment, & Recreation",
+      (YEAR <= 2003)&(IND >= 866 & IND <= 869) ~ "17. Accommodation & Food Services",
+      (YEAR <= 2003)&(IND >= 877 & IND <= 929) ~ "18. Other Services (Except Public Admin)",
+      (YEAR <= 2003)&(IND >= 937 & IND <= 959) ~ "19. Public Administration",
+      (YEAR <= 2003)&(IND >= 967 & IND <= 987) ~ "20. Military",
+      TRUE ~ "21. Unclassified / Not in Labor Force"
+    ),
+    # Handle any missing industry sectors
+    ind_sector = ifelse(is.na(ind_sector), "21. Unclassified / Not in Labor Force", ind_sector)
+  ) %>%
+  
+  # Group by Year, Industry, AND Occupation
+  group_by(YEAR, ind_sector, occ2010) %>%
+  summarise(
+    workers = sum(PERWT, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  collect()
+
+write.csv(temp_ind_occ_data,"temp_ind_occ_data.csv")
+```
+
+
+```{r}
+# Filter for the latest year to view current distribution
+latest_year_data <- ind_occ_data %>%
+  filter(YEAR == max(YEAR)) %>%
+  # Calculate the percentage of the total workforce for each cell
+  mutate(pct_total_workforce = (workers / sum(workers)) * 100)
+
+# Create a Heatmap
+ggplot(latest_year_data, aes(x = occ_cat1, y = ind_sector, fill = pct_total_workforce)) +
+  geom_tile(color = "white") +
+  scale_fill_viridis_c(option = "magma", direction = -1, name = "% of Workforce") +
+  my_theme +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1), # Tilt occupation labels for readability
+    panel.grid.major = element_blank(), # Remove gridlines for cleaner tiles
+    panel.grid.minor = element_blank()
+  ) +
+  labs(
+    title = paste("Industry-Occupation Matrix for Puerto Rican Workers (", max(latest_year_data$YEAR), ")", sep=""),
+    subtitle = "Concentration of workers across sectors and roles",
+    x = "Occupation (What they do)",
+    y = "Industry Sector (Where they work)"
+  )
+```
+
+
+```{r}
+top_occ_by_ind <- ind_occ_data %>%
+  group_by(ind_sector, occ_cat1) %>%
+  summarise(total_historical_workers = sum(workers), .groups = "drop") %>%
+  group_by(ind_sector) %>%
+  slice_max(order_by = total_historical_workers, n = 3) %>%
+  arrange(ind_sector, desc(total_historical_workers))
+
+print(top_occ_by_ind)
+```
+
+
+```{r}
+# 1. Add percentage calculations to your combined data
+ind_occ_trends <- ind_occ_data %>%
+  group_by(YEAR) %>%
+  mutate(
+    total_workers_year = sum(workers),
+    pct_of_total_workforce = (workers / total_workers_year) * 100,
+    # Create a unified label for easy plotting
+    combo_label = paste(str_sub(ind_sector, 5), "-", str_sub(occ_cat1, 4)) 
+  ) %>%
+  ungroup()
+
+# 2. Identify the Top 10 largest combinations in the most recent year
+top_10_combos <- ind_occ_trends %>%
+  filter(YEAR == max(YEAR)) %>%
+  slice_max(order_by = workers, n = 10) %>%
+  pull(combo_label)
+
+# 3. Filter the historical data for just those Top 10 combinations
+top_10_trends_data <- ind_occ_trends %>%
+  filter(combo_label %in% top_10_combos)
+```
+
+```{r}
+ggplot(top_10_trends_data, aes(x = YEAR, y = workers, color = combo_label)) +
+  geom_line(linewidth = 1.2) +
+  geom_point() +
+  important_years_lines +
+  my_theme +
+  # Use facet_wrap to separate the 10 trends for readability
+  facet_wrap(~ combo_label, ncol = 3, scales = "free_y") +
+  theme(
+    legend.position = "none",
+    strip.text = element_text(size = 7, face = "bold")
+  ) +
+  labs(
+    title = "Top 10 Industry-Occupation Combinations (Raw Counts)",
+    subtitle = "Absolute number of Puerto Rican workers in these roles over time",
+    x = "Year",
+    y = "Total Workers"
+  )
+```
+
+```{r}
+ggplot(top_10_trends_data, aes(x = YEAR, y = pct_of_total_workforce, color = combo_label)) +
+  geom_line(linewidth = 1.2) +
+  geom_point() +
+  important_years_lines +
+  my_theme +
+  facet_wrap(~ combo_label, ncol = 3, scales = "free_y") +
+  theme(
+    legend.position = "none",
+    strip.text = element_text(size = 7, face = "bold")
+  ) +
+  labs(
+    title = "Top 10 Industry-Occupation Combinations (Workforce Share)",
+    subtitle = "Percentage of the total employed Puerto Rican workforce",
+    x = "Year",
+    y = "Percent of Total Workforce (%)"
+  )
+```
+
+```{r}
+# Example: Zooming in on Healthcare
+healthcare_trends <- ind_occ_trends %>%
+  filter(str_detect(ind_sector, "Health Care"))
+
+# Plotting the shifting composition inside Healthcare using a 100% Stacked Area Chart
+ggplot(healthcare_trends, aes(x = YEAR, y = workers, fill = occ_cat1)) +
+  geom_area(position = "fill", alpha = 0.8) +
+  scale_y_continuous(labels = scales::percent_format()) +
+  important_years_lines +
+  my_theme +
+  labs(
+    title = "Occupational Composition within Healthcare",
+    subtitle = "How roles are shifting within the Health Care & Social Assistance sector",
+    x = "Year",
+    y = "Proportion of Sector Workforce",
+    fill = "Occupation"
+  )
+```
+

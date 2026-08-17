@@ -1,0 +1,156 @@
+---
+title: "04_pr_occupation"
+author: "Jorge R. Soldevila Irizarry"
+date: "`r Sys.Date()`"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, fig.width = 12, fig.height = 8)
+options(scipen = 999)
+
+# Source central setup file
+source("00_project_setup.R")
+```
+
+## Generate Occupation Categories
+
+```{r}
+# Generate occupational categories natively on the server side
+acs_occ_labeled <- data_acs %>%
+  filter(HISPAN == 2 | HISPAND == 200 | ANCESTR1 == 261, AGE >= 16, EMPSTAT == 1) %>%
+  mutate(
+    occ_cat1 = case_when(
+      (occ2010 >= 10 & occ2010 <= 960) | (occ2010 >= 2600 & occ2010 <= 2960) ~ "1. Management, Business, Entertainment & Media",
+      occ2010 >= 1000 & occ2010 <= 1965 ~ "2. STEM",
+      (occ2010 >= 2000 & occ2010 <= 2550) | (occ2010 >= 4300 & occ2010 <= 4650) ~ "3. Education, Community & Social Services",
+      occ2010 >= 3000 & occ2010 <= 3655 ~ "4. Health & Medical",
+      (occ2010 >= 3700 & occ2010 <= 3955) | (occ2010 >= 9000 & occ2010 <= 9420) ~ "5. Law Enforcement & Transportation",
+      occ2010 >= 4000 & occ2010 <= 4250 ~ "6. Food, Maintenance, Building & Grounds Cleaning",
+      occ2010 >= 4700 & occ2010 <= 4965 ~ "7. Sales and Related",
+      occ2010 >= 5000 & occ2010 <= 5940 ~ "8. Administrative and Office Support",
+      occ2010 >= 6005 & occ2010 <= 7630 ~ "9. Natural Resources, Construction & Maintenance",
+      (occ2010 >= 7700 & occ2010 <= 8965) | (occ2010 >= 9500 & occ2010 <= 9750) ~ "10. Production and Material Moving",
+      occ2010 >= 9800 & occ2010 <= 9830 ~ "11. Military",
+      occ2010 %in% c(9920, 9999) ~ "12. Unclassified",
+      TRUE ~ "12. Unclassified"
+    )
+  )
+```
+
+## Calculate workers per categories
+
+```{r occ_cat1, message=FALSE, warning=FALSE}
+occ_cat1 <- acs_occ_labeled %>%
+  group_by(YEAR, occ_cat1) %>%
+  summarise(workers = sum(PERWT, na.rm = TRUE), .groups = "drop") %>%
+  collect() %>%
+  group_by(YEAR) %>%
+  mutate(pct_workers = workers / sum(workers) * 100) %>%
+  ungroup()
+```
+
+```{r Arrange Levels, message=FALSE, warning=FALSE}
+occ_levels <- c(
+  "1. Management, Business, Entertainment & Media",
+  "2. STEM",
+  "3. Education, Community & Social Services",
+  "4. Health and Medical",
+  "5. Law Enforcement & Transportation",
+  "6. Food, Maintenance, Building & Grounds Cleaning",
+  "7. Sales and Related",
+  "8. Administrative and Office Support",
+  "9. Natural Resources, Construction & Maintenance",
+  "10. Production and Material Moving",
+  "11. Military",
+  "12. Unclassified"
+)
+
+occ_cat1 <- occ_cat1 %>%
+  mutate(
+    occ_cat1 = factor(
+      occ_cat1,
+      levels = occ_levels,
+      ordered = TRUE
+    )
+  )
+```
+
+
+## Occupation Visualization
+
+```{r plot worker, message=FALSE, warning=FALSE}
+# Using facet_wrap to prevent the spaghetti chart effect of 12 intersecting lines
+ggplot(occ_cat1, aes(x = YEAR, y = workers, color = occ_cat1)) +
+  geom_line(size = 1) +
+  geom_point(size = 1.5) +
+  facet_wrap(~ occ_cat1, scales = "free_y", ncol = 4) +
+  important_years_lines +
+  my_theme +
+  theme(legend.position = "none") + # Legend isn't needed with facets
+  labs(
+    title = "Puerto Rican Workers by Occupation",
+    subtitle = "Estimated workers over time. Note: Y-axis scales vary by panel.",
+    x = "Year",
+    y = "Total Workers"
+  )
+```
+
+
+```{r plot pct_worker, message=FALSE, warning=FALSE}
+# Using facet_wrap to prevent the spaghetti chart effect of 12 intersecting lines
+ggplot(occ_cat1, aes(x = YEAR, y = pct_workers, color = occ_cat1)) +
+  geom_line(size = 1) +
+  geom_point(size = 1.5) +
+  facet_wrap(~ occ_cat1, scales = "free_y", ncol = 4) +
+  important_years_lines +
+  my_theme +
+  theme(legend.position = "none") + # Legend isn't needed with facets
+  labs(
+    title = "Puerto Rican Workers by Occupation",
+    subtitle = "Percent workers over time. Note: Y-axis scales vary by panel.",
+    x = "Year",
+    y = "Total Workers"
+  )
+```
+
+```{r change workers, message=FALSE,warning=FALSE}
+occ_change <- occ_cat1 %>%
+  group_by(occ_cat1) %>%
+  arrange(YEAR) %>%
+  summarise(
+    first_share = first(pct_workers),
+    last_share = last(pct_workers),
+    pp_change = last_share - first_share,
+    .groups = "drop"
+  ) %>%
+  arrange(desc(pp_change))
+
+
+occ_change
+```
+
+
+```{r plot change, message=FALSE, warning=FALSE}
+ggplot(occ_change, aes(x = reorder(occ_cat1, pp_change), y = pp_change, fill = pp_change > 0)) +
+  geom_col() +
+  coord_flip() +
+  my_theme +
+  theme(legend.position = "none") +
+  scale_fill_manual(values = c("FALSE" = "#d95f02", "TRUE" = "#1b9e77")) +
+  labs(
+    title = "Change in Occupational Composition",
+    subtitle = "Percentage-point change between first and last year",
+    x = NULL,
+    y = "Percentage Point Change"
+  )
+```
+
+
+
+
+
+
+
+
+

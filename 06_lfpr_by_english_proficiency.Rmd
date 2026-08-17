@@ -1,0 +1,188 @@
+---
+title: "06_lfpr_by_english_proficiency"
+author: "Jorge R. Soldevila Irizarry"
+date: "`r Sys.Date()`"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+options(scipen = 999)
+selected_years <- c(2005, 2010, 2015, 2020)
+
+# Source central setup file
+source("00_project_setup.R")
+```
+
+# LFPR by English Language Proficiency
+
+```{r}
+# Create a base table with the virtual grouping
+acs_with_eng <- data_acs %>%
+  mutate(
+    eng_grp = case_when(
+      SPEAKENG %in% c(1, 2) ~ "Limited English (Not well / Not at all)",
+      SPEAKENG == 3 ~ "Speaks English Well",
+      SPEAKENG == 4 ~ "Speaks English Very Well",
+      SPEAKENG == 5 ~ "Speaks Only English",
+      TRUE ~ "Unknown/NA"
+    )
+  ) %>%
+  filter(eng_grp != "Unknown/NA")
+```
+
+```{r}
+# Calculate for PR in US by English Proficiency
+pr_eng_lf_rate_us <- acs_with_eng %>%
+  filter(HISPAN == 2 | HISPAND == 200 | ANCESTR1 == 261, AGE >= 16, 
+         EMPSTAT != 0, !(EMPSTATD %in% 13:15), GQ != 3) %>%
+  group_by(YEAR, eng_grp) %>%
+  summarise(
+    total_pop = sum(ifelse(EMPSTAT %in% c(1, 2, 3), PERWT, 0), na.rm = TRUE),
+      in_labfor = sum(ifelse(EMPSTAT %in% c(1, 2), PERWT, 0), na.rm = TRUE),
+      out_labfor = sum(ifelse(EMPSTAT == 3, PERWT, 0), na.rm = TRUE),
+      unemp = sum(ifelse(EMPSTAT == 2, PERWT, 0), na.rm = TRUE),
+      .groups = "drop_last"
+  ) %>%
+  mutate(
+    labfor_rate = (in_labfor / total_pop) * 100,
+      out_labfor_pct = (out_labfor / total_pop) * 100,
+      unemp_rate = (unemp / in_labfor) * 100,
+      etop_ratio = (in_labfor-unemp)/total_pop * 100,
+    eng_pct = total_pop / sum(total_pop) * 100,
+  ) %>%
+  collect()
+
+eng_lf_rate_us <- acs_with_eng %>%
+  filter(EMPSTAT != 0, !(EMPSTATD %in% 13:15), GQ != 3) %>%
+  group_by(YEAR, eng_grp) %>%
+  summarise(
+    total_pop = sum(ifelse(EMPSTAT %in% c(1, 2, 3), PERWT, 0), na.rm = TRUE),
+      in_labfor = sum(ifelse(EMPSTAT %in% c(1, 2), PERWT, 0), na.rm = TRUE),
+      out_labfor = sum(ifelse(EMPSTAT == 3, PERWT, 0), na.rm = TRUE),
+      unemp = sum(ifelse(EMPSTAT == 2, PERWT, 0), na.rm = TRUE),
+      .groups = "drop_last"
+  ) %>%
+  mutate(
+    labfor_rate = (in_labfor / total_pop) * 100,
+      out_labfor_pct = (out_labfor / total_pop) * 100,
+      unemp_rate = (unemp / in_labfor) * 100,
+      etop_ratio = (in_labfor-unemp)/total_pop * 100,
+    eng_pct = total_pop / sum(total_pop) * 100,
+  ) %>%
+  collect()
+```
+
+## LFPR by English Language Proficiency Visualization
+
+### Puerto Ricans
+
+```{r}
+ggplot(pr_eng_lf_rate_us, aes(x = YEAR, y = labfor_rate, color = eng_grp)) +
+  geom_line(size = 1) +
+  geom_point() +
+  important_years_lines +
+  my_theme +
+  labs(
+    title = "Labor Force Participation Rate for Puerto Ricans in the US by English Proficiency",
+    x = "Year",
+    y = "Participation Rate (%)"
+  )
+```
+
+### Total US Population
+
+```{r}
+ggplot(eng_lf_rate_us, aes(x = YEAR, y = labfor_rate, color = eng_grp)) +
+  geom_line(size = 1) +
+  geom_point() +
+  important_years_lines +
+  my_theme +
+  labs(
+    title = "Labor Force Participation Rate for US Population by English Proficiency",
+    x = "Year",
+    y = "Participation Rate (%)"
+  )
+```
+
+## LFPR by English Language Proficiency by Sex
+
+```{r}
+# Calculate for PR in US by English Group by Sex
+pr_eng_lf_rate_sex <- acs_with_eng %>%
+  filter(HISPAN == 2 | HISPAND == 200 | ANCESTR1 == 261, AGE >= 16, 
+         EMPSTAT != 0, !(EMPSTATD %in% 13:15), GQ != 3,
+         SEX != 9) %>%
+  group_by(YEAR, eng_grp, SEX) %>%
+  summarise(
+    total_pop = sum(ifelse(EMPSTAT %in% c(1, 2, 3), PERWT, 0), na.rm = TRUE),
+      in_labfor = sum(ifelse(EMPSTAT %in% c(1, 2), PERWT, 0), na.rm = TRUE),
+      out_labfor = sum(ifelse(EMPSTAT == 3, PERWT, 0), na.rm = TRUE),
+      unemp = sum(ifelse(EMPSTAT == 2, PERWT, 0), na.rm = TRUE),
+      .groups = "drop"
+  ) %>%
+  mutate(
+      sex = case_when(SEX == 1 ~ "Male",
+                      SEX == 2 ~ "Female"),
+    labfor_rate = (in_labfor / total_pop) * 100,
+      out_labfor_pct = (out_labfor / total_pop) * 100,
+      unemp_rate = (unemp / in_labfor) * 100,
+      etop_ratio = (in_labfor-unemp)/total_pop * 100
+  ) %>%
+  collect()
+
+eng_lf_rate_sex <- acs_with_eng %>%
+  filter(EMPSTAT != 0, !(EMPSTATD %in% 13:15), GQ != 3,
+         SEX != 9) %>%
+  group_by(YEAR, eng_grp, SEX) %>%
+  summarise(
+    total_pop = sum(ifelse(EMPSTAT %in% c(1, 2, 3), PERWT, 0), na.rm = TRUE),
+      in_labfor = sum(ifelse(EMPSTAT %in% c(1, 2), PERWT, 0), na.rm = TRUE),
+      out_labfor = sum(ifelse(EMPSTAT == 3, PERWT, 0), na.rm = TRUE),
+      unemp = sum(ifelse(EMPSTAT == 2, PERWT, 0), na.rm = TRUE),
+      .groups = "drop"
+  ) %>%
+  mutate(
+      sex = case_when(SEX == 1 ~ "Male",
+                      SEX == 2 ~ "Female"),
+    labfor_rate = (in_labfor / total_pop) * 100,
+      out_labfor_pct = (out_labfor / total_pop) * 100,
+      unemp_rate = (unemp / in_labfor) * 100,
+      etop_ratio = (in_labfor-unemp)/total_pop * 100
+  ) %>%
+  collect()
+```
+
+### LFPR by English Language Proficiency Visualization by Sex
+
+#### Puerto Ricans by Sex
+
+```{r}
+ggplot(pr_eng_lf_rate_sex, aes(x = YEAR, y = labfor_rate, color = eng_grp)) +
+  geom_line(size = 1) +
+  geom_point() +
+  facet_wrap(~ sex) +                       
+  important_years_lines +
+  my_theme +
+  labs(
+    title = "Labor Force Participation Rate for Puerto Ricans by English Proficiency & Sex",
+    x = "Year",
+    y = "Participation Rate (%)"
+  )
+```
+
+#### Total US Population by Sex
+
+```{r}
+ggplot(eng_lf_rate_sex, aes(x = YEAR, y = labfor_rate, color = eng_grp)) +
+  geom_line(size = 1) +
+  geom_point() +
+  facet_wrap(~ sex) +                       
+  important_years_lines +
+  my_theme +
+  labs(
+    title = "Labor Force Participation Rate for US Population by English Proficiency & Sex",
+    x = "Year",
+    y = "Participation Rate (%)"
+  )
+```

@@ -1,0 +1,473 @@
+---
+title: "05_pr_industry"
+author: "Jorge R. Soldevila Irizarry"
+date: "`r Sys.Date()`"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, fig.width = 14, fig.height = 10)
+options(scipen = 999)
+
+# Source central setup file containing DB connection and my_theme
+source("00_project_setup.R")
+```
+
+## Initial data prep
+
+```{r}
+ind_sector_data <- data_acs %>%
+  filter(
+    HISPAN == 2 | HISPAND == 200 | ANCESTR1 == 261, 
+    AGE >= 16, 
+    EMPSTAT == 1
+  ) %>% 
+  mutate(ind_sector = case_when(
+      (YEAR >= 2003)&(IND >= 0170  & IND <= 0290)  ~ "01. Agriculture, Forestry, Fishing & Hunting",
+      (YEAR >= 2003)&(IND >= 0370  & IND <= 0490)  ~ "02. Mining, Quarrying, & Oil/Gas Extraction",
+      (YEAR >= 2003)&(IND >= 0570  & IND <= 0690)  ~ "03. Utilities",
+      (YEAR >= 2003)&(IND == 0770)                ~ "04. Construction",
+      (YEAR >= 2003)&(IND >= 1070 & IND <= 3990) ~ "05. Manufacturing",
+      (YEAR >= 2003)&(IND >= 4070 & IND <= 4590) ~ "06. Wholesale Trade",
+      (YEAR >= 2003)&(IND >= 4670 & IND <= 5791) ~ "07. Retail Trade",
+      (YEAR >= 2003)&(IND >= 6070 & IND <= 6390) ~ "08. Transportation & Warehousing",
+      (YEAR >= 2003)&(IND >= 6470 & IND <= 6695) ~ "09. Information",
+      (YEAR >= 2003)&(IND >= 6870 & IND <= 6992) ~ "10. Finance & Insurance",
+      (YEAR >= 2003)&(IND >= 7070 & IND <= 7190) ~ "11. Real Estate & Rental/Leasing",
+      (YEAR >= 2003)&(IND >= 7270 & IND <= 7490) ~ "12. Professional, Scientific, & Tech Services",
+      (YEAR >= 2003)&(IND >= 7570 & IND <= 7790) ~ "13. Administrative, Support, & Waste Mgmt",
+      (YEAR >= 2003)&(IND >= 7860 & IND <= 7890) ~ "14. Educational Services",
+      (YEAR >= 2003)&(IND >= 7970 & IND <= 8470) ~ "15. Health Care & Social Assistance",
+      (YEAR >= 2003)&(IND >= 8560 & IND <= 8590) ~ "16. Arts, Entertainment, & Recreation",
+      (YEAR >= 2003)&(IND >= 8660 & IND <= 8690) ~ "17. Accommodation & Food Services",
+      (YEAR >= 2003)&(IND >= 8770 & IND <= 9290) ~ "18. Other Services (Except Public Admin)",
+      (YEAR >= 2003)&(IND >= 9370 & IND <= 9590) ~ "19. Public Administration",
+      (YEAR >= 2003)&(IND >= 9670 & IND <= 9870) ~ "20. Military",
+      (YEAR < 2003)&(IND >= 17  & IND <= 29)  ~ "01. Agriculture, Forestry, Fishing & Hunting",
+      (YEAR < 2003)&(IND >= 37  & IND <= 49)  ~ "02. Mining, Quarrying, & Oil/Gas Extraction",
+      (YEAR < 2003)&(IND >= 57  & IND <= 69)  ~ "03. Utilities",
+      (YEAR < 2003)&(IND == 77)                ~ "04. Construction",
+      (YEAR < 2003)&(IND >= 107 & IND <= 399) ~ "05. Manufacturing",
+      (YEAR < 2003)&(IND >= 407 & IND <= 459) ~ "06. Wholesale Trade",
+      (YEAR < 2003)&(IND >= 467 & IND <= 579) ~ "07. Retail Trade",
+      (YEAR < 2003)&(IND >= 607 & IND <= 639) ~ "08. Transportation & Warehousing",
+      (YEAR < 2003)&(IND >= 647 & IND <= 679) ~ "09. Information",
+      (YEAR < 2003)&(IND >= 687 & IND <= 699) ~ "10. Finance & Insurance",
+      (YEAR < 2003)&(IND >= 707 & IND <= 719) ~ "11. Real Estate & Rental/Leasing",
+      (YEAR < 2003)&(IND >= 727 & IND <= 749) ~ "12. Professional, Scientific, & Tech Services",
+      (YEAR < 2003)&(IND >= 757 & IND <= 779) ~ "13. Administrative, Support, & Waste Mgmt",
+      (YEAR < 2003)&(IND >= 786 & IND <= 789) ~ "14. Educational Services",
+      (YEAR < 2003)&(IND >= 797 & IND <= 847) ~ "15. Health Care & Social Assistance",
+      (YEAR < 2003)&(IND >= 856 & IND <= 859) ~ "16. Arts, Entertainment, & Recreation",
+      (YEAR < 2003)&(IND >= 866 & IND <= 869) ~ "17. Accommodation & Food Services",
+      (YEAR < 2003)&(IND >= 877 & IND <= 929) ~ "18. Other Services (Except Public Admin)",
+      (YEAR < 2003)&(IND >= 937 & IND <= 959) ~ "19. Public Administration",
+      (YEAR < 2003)&(IND >= 967 & IND <= 987) ~ "20. Military",
+      TRUE ~ "21. Unclassified / Not in Labor Force"
+    )) %>%
+  group_by(YEAR, ind_sector) %>%
+  summarise(
+    workers = sum(PERWT, na.rm = TRUE), 
+    .groups = "drop"
+  ) %>%
+  # 2. Collect into local memory
+  collect() %>%
+  
+  # 3. Local Calculation & Cleaning
+  group_by(YEAR) %>%
+  mutate(pct_workers = workers / sum(workers) * 100) %>%
+  ungroup() %>%
+  # Catch any missing sectors and label them
+  mutate(ind_sector = replace_na(ind_sector, "21. Unclassified / Not in Labor Force"))
+
+ind_sector_data_us <- data_acs %>%
+  filter(
+    AGE >= 16, 
+    EMPSTAT == 1
+  ) %>% 
+  mutate(ind_sector = case_when(
+      (YEAR >= 2003)&(IND >= 0170  & IND <= 0290)  ~ "01. Agriculture, Forestry, Fishing & Hunting",
+      (YEAR >= 2003)&(IND >= 0370  & IND <= 0490)  ~ "02. Mining, Quarrying, & Oil/Gas Extraction",
+      (YEAR >= 2003)&(IND >= 0570  & IND <= 0690)  ~ "03. Utilities",
+      (YEAR >= 2003)&(IND == 0770)                ~ "04. Construction",
+      (YEAR >= 2003)&(IND >= 1070 & IND <= 3990) ~ "05. Manufacturing",
+      (YEAR >= 2003)&(IND >= 4070 & IND <= 4590) ~ "06. Wholesale Trade",
+      (YEAR >= 2003)&(IND >= 4670 & IND <= 5791) ~ "07. Retail Trade",
+      (YEAR >= 2003)&(IND >= 6070 & IND <= 6390) ~ "08. Transportation & Warehousing",
+      (YEAR >= 2003)&(IND >= 6470 & IND <= 6695) ~ "09. Information",
+      (YEAR >= 2003)&(IND >= 6870 & IND <= 6992) ~ "10. Finance & Insurance",
+      (YEAR >= 2003)&(IND >= 7070 & IND <= 7190) ~ "11. Real Estate & Rental/Leasing",
+      (YEAR >= 2003)&(IND >= 7270 & IND <= 7490) ~ "12. Professional, Scientific, & Tech Services",
+      (YEAR >= 2003)&(IND >= 7570 & IND <= 7790) ~ "13. Administrative, Support, & Waste Mgmt",
+      (YEAR >= 2003)&(IND >= 7860 & IND <= 7890) ~ "14. Educational Services",
+      (YEAR >= 2003)&(IND >= 7970 & IND <= 8470) ~ "15. Health Care & Social Assistance",
+      (YEAR >= 2003)&(IND >= 8560 & IND <= 8590) ~ "16. Arts, Entertainment, & Recreation",
+      (YEAR >= 2003)&(IND >= 8660 & IND <= 8690) ~ "17. Accommodation & Food Services",
+      (YEAR >= 2003)&(IND >= 8770 & IND <= 9290) ~ "18. Other Services (Except Public Admin)",
+      (YEAR >= 2003)&(IND >= 9370 & IND <= 9590) ~ "19. Public Administration",
+      (YEAR >= 2003)&(IND >= 9670 & IND <= 9870) ~ "20. Military",
+      (YEAR < 2003)&(IND >= 17  & IND <= 29)  ~ "01. Agriculture, Forestry, Fishing & Hunting",
+      (YEAR < 2003)&(IND >= 37  & IND <= 49)  ~ "02. Mining, Quarrying, & Oil/Gas Extraction",
+      (YEAR < 2003)&(IND >= 57  & IND <= 69)  ~ "03. Utilities",
+      (YEAR < 2003)&(IND == 77)                ~ "04. Construction",
+      (YEAR < 2003)&(IND >= 107 & IND <= 399) ~ "05. Manufacturing",
+      (YEAR < 2003)&(IND >= 407 & IND <= 459) ~ "06. Wholesale Trade",
+      (YEAR < 2003)&(IND >= 467 & IND <= 579) ~ "07. Retail Trade",
+      (YEAR < 2003)&(IND >= 607 & IND <= 639) ~ "08. Transportation & Warehousing",
+      (YEAR < 2003)&(IND >= 647 & IND <= 679) ~ "09. Information",
+      (YEAR < 2003)&(IND >= 687 & IND <= 699) ~ "10. Finance & Insurance",
+      (YEAR < 2003)&(IND >= 707 & IND <= 719) ~ "11. Real Estate & Rental/Leasing",
+      (YEAR < 2003)&(IND >= 727 & IND <= 749) ~ "12. Professional, Scientific, & Tech Services",
+      (YEAR < 2003)&(IND >= 757 & IND <= 779) ~ "13. Administrative, Support, & Waste Mgmt",
+      (YEAR < 2003)&(IND >= 786 & IND <= 789) ~ "14. Educational Services",
+      (YEAR < 2003)&(IND >= 797 & IND <= 847) ~ "15. Health Care & Social Assistance",
+      (YEAR < 2003)&(IND >= 856 & IND <= 859) ~ "16. Arts, Entertainment, & Recreation",
+      (YEAR < 2003)&(IND >= 866 & IND <= 869) ~ "17. Accommodation & Food Services",
+      (YEAR < 2003)&(IND >= 877 & IND <= 929) ~ "18. Other Services (Except Public Admin)",
+      (YEAR < 2003)&(IND >= 937 & IND <= 959) ~ "19. Public Administration",
+      (YEAR < 2003)&(IND >= 967 & IND <= 987) ~ "20. Military",
+      TRUE ~ "21. Unclassified / Not in Labor Force"
+    )) %>%
+  group_by(YEAR, ind_sector) %>%
+  summarise(
+    workers = sum(PERWT, na.rm = TRUE), 
+    .groups = "drop"
+  ) %>%
+  # 2. Collect into local memory
+  collect() %>%
+  
+  # 3. Local Calculation & Cleaning
+  group_by(YEAR) %>%
+  mutate(pct_workers = workers / sum(workers) * 100) %>%
+  ungroup() %>%
+  # Catch any missing sectors and label them
+  mutate(ind_sector = replace_na(ind_sector, "21. Unclassified / Not in Labor Force"))
+```
+
+
+## Visualize change in industry sectors
+
+```{r pr-workers-plot}
+# Using facet_wrap to clearly view trends across 20+ sectors without overlap
+ggplot(ind_sector_data, aes(x = YEAR, y = workers, color = ind_sector)) +
+  geom_line(size = 1) +
+  geom_point(size = 1.5) +
+  facet_wrap(~ ind_sector, ncol = 4) +
+  important_years_lines +
+  my_theme +
+  theme(
+    legend.position = "none",
+    strip.text = element_text(size = 8, face = "bold") # Shrink facet titles slightly to fit
+  ) +
+  labs(
+    title = "Puerto Rican Workers by Industry Sector",
+    subtitle = "Estimated workers over time. Note: Y-axis scales vary by panel to show specific trends.",
+    x = "Year",
+    y = "Total Workers"
+  )
+```
+
+
+```{r us-workers-plot}
+# Using facet_wrap to clearly view trends across 20+ sectors without overlap
+ggplot(ind_sector_data_us, aes(x = YEAR, y = workers, color = ind_sector)) +
+  geom_line(size = 1) +
+  geom_point(size = 1.5) +
+  facet_wrap(~ ind_sector, ncol = 4) +
+  important_years_lines +
+  my_theme +
+  theme(
+    legend.position = "none",
+    strip.text = element_text(size = 8, face = "bold") # Shrink facet titles slightly to fit
+  ) +
+  labs(
+    title = "Total US Workers by Industry Sector",
+    subtitle = "Estimated workers over time. Note: Y-axis scales vary by panel to show specific trends.",
+    x = "Year",
+    y = "Total Workers"
+  )
+```
+
+
+## Percentage point difference
+
+```{r pr-pp-change}
+# Calculate the percentage point shift from the earliest to latest available year
+ind_change <- ind_sector_data %>%
+  group_by(ind_sector) %>%
+  arrange(YEAR) %>%
+  summarise(
+    first_year = first(YEAR),
+    last_year = last(YEAR),
+    first_share = first(pct_workers),
+    last_share = last(pct_workers),
+    pp_change = last_share - first_share,
+    .groups = "drop"
+  ) %>%
+  arrange(desc(pp_change))
+
+# Display top growing and declining sectors
+print(head(ind_change, 5))
+print(tail(ind_change, 5))
+
+```
+```{r us-pp-change}
+# Calculate the percentage point shift from the earliest to latest available year
+ind_change_us <- ind_sector_data_us %>%
+  group_by(ind_sector) %>%
+  arrange(YEAR) %>%
+  summarise(
+    first_year = first(YEAR),
+    last_year = last(YEAR),
+    first_share = first(pct_workers),
+    last_share = last(pct_workers),
+    pp_change = last_share - first_share,
+    .groups = "drop"
+  ) %>%
+  arrange(desc(pp_change))
+
+# Display top growing and declining sectors
+print(head(ind_change_us, 5))
+print(tail(ind_change_us, 5))
+
+```
+
+```{r pr-pp-change-visualization}
+ggplot(ind_change, aes(x = reorder(ind_sector, pp_change), y = pp_change, fill = pp_change > 0)) +
+  geom_col() +
+  coord_flip() +
+  my_theme +
+  theme(legend.position = "none") +
+  scale_fill_manual(values = c("FALSE" = "#d95f02", "TRUE" = "#1b9e77")) +
+  labs(
+    title = "Change in Industry Composition among Puerto Rican Workers",
+    subtitle = "Percentage-point change in workforce share between first and last year",
+    x = NULL,
+    y = "Percentage Point Change"
+  )
+```
+
+```{r total-pop-change-visualization}
+ggplot(ind_change_us, aes(x = reorder(ind_sector, pp_change), y = pp_change, fill = pp_change > 0)) +
+  geom_col() +
+  coord_flip() +
+  my_theme +
+  theme(legend.position = "none") +
+  scale_fill_manual(values = c("FALSE" = "#d95f02", "TRUE" = "#1b9e77")) +
+  labs(
+    title = "Change in Industry Composition among Total Workers",
+    subtitle = "Percentage-point change in workforce share between first and last year",
+    x = NULL,
+    y = "Percentage Point Change"
+  )
+```
+
+## Calculate index
+
+```{r pr-index-calc}
+# Calculate an index to see relative growth within each sector (Baseline Year = 100)
+ind_index <- ind_sector_data %>%
+  filter(ind_sector != "20. Military", ind_sector != "21. Unclassified / Not in Labor Force") %>%
+  group_by(ind_sector) %>%
+  arrange(YEAR) %>%
+  mutate(
+    index = workers / first(workers) * 100
+  ) %>%
+  ungroup()
+```
+
+```{r us-index-calc}
+# Calculate an index to see relative growth within each sector (Baseline Year = 100)
+ind_index_us <- ind_sector_data_us %>%
+  filter(ind_sector != "20. Military", ind_sector != "21. Unclassified / Not in Labor Force") %>%
+  group_by(ind_sector) %>%
+  arrange(YEAR) %>%
+  mutate(
+    index = workers / first(workers) * 100
+  ) %>%
+  ungroup()
+```
+
+```{r pr-index-plot}
+ggplot(ind_index, aes(x = YEAR, y = index, color = ind_sector)) +
+  geom_line(size = 1) +
+  geom_point(size = 1) +
+  facet_wrap(~ ind_sector, ncol = 4) +
+  important_years_lines +
+  my_theme +
+  theme(
+    legend.position = "none",
+    strip.text = element_text(size = 8, face = "bold")
+  ) +
+  # Adding a horizontal baseline reference line at index = 100
+  geom_hline(yintercept = 100, linetype = "dashed", color = "black", alpha = 0.5) +
+  labs(
+    title = "Industry Employment Growth Index",
+    subtitle = "First year = 100. Dashed line represents baseline.",
+    x = "Year",
+    y = "Index"
+  )
+```
+```{r us-index-plot}
+ggplot(ind_index_us, aes(x = YEAR, y = index, color = ind_sector)) +
+  geom_line(size = 1) +
+  geom_point(size = 1) +
+  facet_wrap(~ ind_sector, ncol = 4) +
+  important_years_lines +
+  my_theme +
+  theme(
+    legend.position = "none",
+    strip.text = element_text(size = 8, face = "bold")
+  ) +
+  # Adding a horizontal baseline reference line at index = 100
+  geom_hline(yintercept = 100, linetype = "dashed", color = "black", alpha = 0.5) +
+  labs(
+    title = "Industry Employment Growth Index",
+    subtitle = "First year = 100. Dashed line represents baseline.",
+    x = "Year",
+    y = "Index"
+  )
+```
+
+
+## Puerto Rican Workers by Industry by Age
+
+```{r}
+acs_with_age <- data_acs %>%
+  mutate(
+    age_grp = case_when(
+      AGE < 16 ~ "minor",
+      AGE >= 16 & AGE <= 24 ~ "16 to 24",
+      AGE >= 25 & AGE <= 54 ~ "25 to 54",
+      AGE >= 55 ~ "55+"
+    )
+  )
+```
+
+```{r}
+ind_sector_data_age <- acs_with_age %>%
+  filter(
+    HISPAN == 2 | HISPAND == 200 | ANCESTR1 == 261, 
+    AGE >= 16, 
+    EMPSTAT == 1
+  ) %>% 
+  mutate(ind_sector = case_when(
+      (YEAR >= 2003)&(IND >= 0170  & IND <= 0290)  ~ "01. Agriculture, Forestry, Fishing & Hunting",
+      (YEAR >= 2003)&(IND >= 0370  & IND <= 0490)  ~ "02. Mining, Quarrying, & Oil/Gas Extraction",
+      (YEAR >= 2003)&(IND >= 0570  & IND <= 0690)  ~ "03. Utilities",
+      (YEAR >= 2003)&(IND == 0770)                ~ "04. Construction",
+      (YEAR >= 2003)&(IND >= 1070 & IND <= 3990) ~ "05. Manufacturing",
+      (YEAR >= 2003)&(IND >= 4070 & IND <= 4590) ~ "06. Wholesale Trade",
+      (YEAR >= 2003)&(IND >= 4670 & IND <= 5791) ~ "07. Retail Trade",
+      (YEAR >= 2003)&(IND >= 6070 & IND <= 6390) ~ "08. Transportation & Warehousing",
+      (YEAR >= 2003)&(IND >= 6470 & IND <= 6695) ~ "09. Information",
+      (YEAR >= 2003)&(IND >= 6870 & IND <= 6992) ~ "10. Finance & Insurance",
+      (YEAR >= 2003)&(IND >= 7070 & IND <= 7190) ~ "11. Real Estate & Rental/Leasing",
+      (YEAR >= 2003)&(IND >= 7270 & IND <= 7490) ~ "12. Professional, Scientific, & Tech Services",
+      (YEAR >= 2003)&(IND >= 7570 & IND <= 7790) ~ "13. Administrative, Support, & Waste Mgmt",
+      (YEAR >= 2003)&(IND >= 7860 & IND <= 7890) ~ "14. Educational Services",
+      (YEAR >= 2003)&(IND >= 7970 & IND <= 8470) ~ "15. Health Care & Social Assistance",
+      (YEAR >= 2003)&(IND >= 8560 & IND <= 8590) ~ "16. Arts, Entertainment, & Recreation",
+      (YEAR >= 2003)&(IND >= 8660 & IND <= 8690) ~ "17. Accommodation & Food Services",
+      (YEAR >= 2003)&(IND >= 8770 & IND <= 9290) ~ "18. Other Services (Except Public Admin)",
+      (YEAR >= 2003)&(IND >= 9370 & IND <= 9590) ~ "19. Public Administration",
+      (YEAR >= 2003)&(IND >= 9670 & IND <= 9870) ~ "20. Military",
+      (YEAR < 2003)&(IND >= 17  & IND <= 29)  ~ "01. Agriculture, Forestry, Fishing & Hunting",
+      (YEAR < 2003)&(IND >= 37  & IND <= 49)  ~ "02. Mining, Quarrying, & Oil/Gas Extraction",
+      (YEAR < 2003)&(IND >= 57  & IND <= 69)  ~ "03. Utilities",
+      (YEAR < 2003)&(IND == 77)                ~ "04. Construction",
+      (YEAR < 2003)&(IND >= 107 & IND <= 399) ~ "05. Manufacturing",
+      (YEAR < 2003)&(IND >= 407 & IND <= 459) ~ "06. Wholesale Trade",
+      (YEAR < 2003)&(IND >= 467 & IND <= 579) ~ "07. Retail Trade",
+      (YEAR < 2003)&(IND >= 607 & IND <= 639) ~ "08. Transportation & Warehousing",
+      (YEAR < 2003)&(IND >= 647 & IND <= 679) ~ "09. Information",
+      (YEAR < 2003)&(IND >= 687 & IND <= 699) ~ "10. Finance & Insurance",
+      (YEAR < 2003)&(IND >= 707 & IND <= 719) ~ "11. Real Estate & Rental/Leasing",
+      (YEAR < 2003)&(IND >= 727 & IND <= 749) ~ "12. Professional, Scientific, & Tech Services",
+      (YEAR < 2003)&(IND >= 757 & IND <= 779) ~ "13. Administrative, Support, & Waste Mgmt",
+      (YEAR < 2003)&(IND >= 786 & IND <= 789) ~ "14. Educational Services",
+      (YEAR < 2003)&(IND >= 797 & IND <= 847) ~ "15. Health Care & Social Assistance",
+      (YEAR < 2003)&(IND >= 856 & IND <= 859) ~ "16. Arts, Entertainment, & Recreation",
+      (YEAR < 2003)&(IND >= 866 & IND <= 869) ~ "17. Accommodation & Food Services",
+      (YEAR < 2003)&(IND >= 877 & IND <= 929) ~ "18. Other Services (Except Public Admin)",
+      (YEAR < 2003)&(IND >= 937 & IND <= 959) ~ "19. Public Administration",
+      (YEAR < 2003)&(IND >= 967 & IND <= 987) ~ "20. Military",
+      TRUE ~ "21. Unclassified / Not in Labor Force"
+    )) %>%
+  group_by(YEAR, age_grp,ind_sector) %>%
+  summarise(
+    workers = sum(PERWT, na.rm = TRUE), 
+    .groups = "drop"
+  ) %>%
+  # 2. Collect into local memory
+  collect() %>%
+  
+  # 3. Local Calculation & Cleaning
+  group_by(YEAR,age_grp) %>%
+  mutate(pct_workers = workers / sum(workers) * 100) %>%
+  ungroup() %>%
+  # Catch any missing sectors and label them
+  mutate(ind_sector = replace_na(ind_sector, "21. Unclassified / Not in Labor Force"))
+```
+
+## Visualize Industry Sector Workers by Age
+
+```{r pr-wokers-16to24}
+ggplot(filter(ind_sector_data_age, age_grp == "16 to 24"), aes(x = YEAR, y = workers, color = ind_sector)) +
+  geom_line(size = 1) +
+  geom_point(size = 1.5) +
+  facet_wrap(~ ind_sector, ncol = 4) +
+  important_years_lines +
+  my_theme +
+  theme(
+    legend.position = "none",
+    strip.text = element_text(size = 8, face = "bold") # Shrink facet titles slightly to fit
+  ) +
+  labs(
+    title = "Puerto Rican Workers 16 to 24 by Industry Sector",
+    subtitle = "Estimated workers over time. Note: Y-axis scales vary by panel to show specific trends.",
+    x = "Year",
+    y = "Total Workers"
+  )
+```
+
+```{r pr-wokers-25to54}
+
+ggplot(filter(ind_sector_data_age, age_grp == "25 to 54"), aes(x = YEAR, y = workers, color = ind_sector)) +
+  geom_line(size = 1) +
+  geom_point(size = 1.5) +
+  facet_wrap(~ ind_sector, ncol = 4) +
+  important_years_lines +
+  my_theme +
+  theme(
+    legend.position = "none",
+    strip.text = element_text(size = 8, face = "bold") # Shrink facet titles slightly to fit
+  ) +
+  labs(
+    title = "Puerto Rican Workers 25 to 54 by Industry Sector",
+    subtitle = "Estimated workers over time. Note: Y-axis scales vary by panel to show specific trends.",
+    x = "Year",
+    y = "Total Workers"
+  )
+```
+
+```{r pr-wokers-55+}
+
+ggplot(filter(ind_sector_data_age, age_grp == "55+"), aes(x = YEAR, y = workers, color = ind_sector)) +
+  geom_line(size = 1) +
+  geom_point(size = 1.5) +
+  facet_wrap(~ ind_sector, ncol = 4) +
+  important_years_lines +
+  my_theme +
+  theme(
+    legend.position = "none",
+    strip.text = element_text(size = 8, face = "bold") # Shrink facet titles slightly to fit
+  ) +
+  labs(
+    title = "Puerto Rican Workers 55+ by Industry Sector",
+    subtitle = "Estimated workers over time. Note: Y-axis scales vary by panel to show specific trends.",
+    x = "Year",
+    y = "Total Workers"
+  )
+```
+

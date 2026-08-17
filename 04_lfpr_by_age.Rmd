@@ -1,0 +1,281 @@
+---
+title: "04_lfpr_by_age"
+author: "Jorge R. Soldevila Irizarry"
+date: "`r Sys.Date()`"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+options(scipen = 999)
+selected_years <- c(2005, 2010, 2015, 2020)
+
+# Source central setup file
+source("00_project_setup.R")
+```
+
+
+# LFPR by Age Groups
+
+```{r Age Goup Table, message=FALSE, warning=FALSE}
+# Create a base table with the virtual grouping
+acs_with_age <- data_acs %>%
+  mutate(
+    age_grp = case_when(
+      AGE < 16 ~ "minor",
+      AGE >= 16 & AGE <= 24 ~ "16 to 24",
+      AGE >= 25 & AGE <= 54 ~ "25 to 54",
+      AGE >= 55 ~ "55+"
+    )
+  )
+```
+
+```{r LFPR Age Group calculation, message=FALSE,warning=FALSE}
+
+# Calculate for PR in US by Age Group
+pr_age_lf_rate_us <- acs_with_age %>%
+  filter(HISPAN == 2 | HISPAND == 200 | ANCESTR1 == 261, AGE >= 16, 
+         EMPSTAT != 0, !(EMPSTATD %in% 13:15), GQ != 3) %>%
+  group_by(YEAR, age_grp) %>%
+  summarise(
+    total_pop = sum(ifelse(EMPSTAT %in% c(1, 2, 3), PERWT, 0), na.rm = TRUE),
+      in_labfor = sum(ifelse(EMPSTAT %in% c(1, 2), PERWT, 0), na.rm = TRUE),
+      out_labfor = sum(ifelse(EMPSTAT == 3, PERWT, 0), na.rm = TRUE),
+      unemp = sum(ifelse(EMPSTAT == 2, PERWT, 0), na.rm = TRUE),
+      .groups = "drop"
+  ) %>%
+  mutate(
+    labfor_rate = (in_labfor / total_pop) * 100,
+      out_labfor_pct = (out_labfor / total_pop) * 100,
+      unemp_rate = (unemp / in_labfor) * 100,
+      etop_ratio = (in_labfor-unemp)/total_pop * 100
+  ) %>%
+  collect()
+
+age_lf_rate_us <- acs_with_age %>%
+  filter(EMPSTAT != 0, !(EMPSTATD %in% 13:15), GQ != 3) %>%
+  group_by(YEAR, age_grp) %>%
+  summarise(
+    total_pop = sum(ifelse(EMPSTAT %in% c(1, 2, 3), PERWT, 0), na.rm = TRUE),
+      in_labfor = sum(ifelse(EMPSTAT %in% c(1, 2), PERWT, 0), na.rm = TRUE),
+      out_labfor = sum(ifelse(EMPSTAT == 3, PERWT, 0), na.rm = TRUE),
+      unemp = sum(ifelse(EMPSTAT == 2, PERWT, 0), na.rm = TRUE),
+      .groups = "drop"
+  ) %>%
+  mutate(
+    labfor_rate = (in_labfor / total_pop) * 100,
+      out_labfor_pct = (out_labfor / total_pop) * 100,
+      unemp_rate = (unemp / in_labfor) * 100,
+      etop_ratio = (in_labfor-unemp)/total_pop * 100
+  ) %>%
+  collect()
+```
+
+
+## LFPR by Age Visualization
+
+#### Puerto Ricans
+
+```{r LFPR Age Group Visualization, message=FALSE,warning=FALSE}
+ggplot(pr_age_lf_rate_us, aes(x = YEAR, y = labfor_rate, color = age_grp)) +
+  geom_line(size = 1) +
+  geom_point() +
+  important_years_lines +
+  my_theme +
+  labs(
+    title = "Labor Force Participation Rate for Puerto Ricans in the US by Age Group",
+    x = "Year",
+    y = "Participation Rate (%)"
+  )
+```
+
+#### Total US Population
+
+```{r LFPR Age Group Visualization message=FALSE,warning=FALSE}
+ggplot(age_lf_rate_us, aes(x = YEAR, y = labfor_rate, color = age_grp)) +
+  geom_line(size = 1) +
+  geom_point() +
+  important_years_lines +
+  my_theme +
+  labs(
+    title = "Labor Force Participation Rate for US Population by Age Group",
+    x = "Year",
+    y = "Participation Rate (%)"
+  )
+```
+
+## LFPR by Age Updated
+
+```{r Age Goup Table updated, message=FALSE, warning=FALSE}
+# Create a base table with the virtual grouping
+acs_with_age_updated <- data_acs %>%
+  mutate(
+    age_grp = case_when(
+      AGE >= 16 & AGE <= 18 ~ "16-18",
+      AGE >= 19 & AGE <= 24 ~ "19-24",
+      AGE >= 25 & AGE <= 34 ~ "25-34",
+      AGE >= 35 & AGE <= 44 ~ "35-44",
+      AGE >= 45 & AGE <= 54 ~ "45-54",
+      AGE >= 55 & AGE <= 64 ~ "55-64",
+      AGE >= 65 ~ "65+"
+    )
+  )
+```
+
+```{r LFPR Age Group calculation, message=FALSE,warning=FALSE}
+
+# Calculate for PR in US by Age Group
+pr_age_lf_rate_updated <- acs_with_age_updated %>%
+  filter(HISPAN == 2 | HISPAND == 200 | ANCESTR1 == 261, AGE >= 16, 
+         EMPSTAT != 0, !(EMPSTATD %in% 13:15), GQ != 3) %>%
+  group_by(YEAR, age_grp) %>%
+  summarise(
+    total_pop = sum(ifelse(EMPSTAT %in% c(1, 2, 3), PERWT, 0), na.rm = TRUE),
+      in_labfor = sum(ifelse(EMPSTAT %in% c(1, 2), PERWT, 0), na.rm = TRUE),
+      out_labfor = sum(ifelse(EMPSTAT == 3, PERWT, 0), na.rm = TRUE),
+      unemp = sum(ifelse(EMPSTAT == 2, PERWT, 0), na.rm = TRUE),
+      .groups = "drop"
+  ) %>%
+  mutate(
+    labfor_rate = (in_labfor / total_pop) * 100,
+      out_labfor_pct = (out_labfor / total_pop) * 100,
+      unemp_rate = (unemp / in_labfor) * 100,
+      etop_ratio = (in_labfor-unemp)/total_pop * 100
+  ) %>%
+  collect()
+
+age_lf_rate_updated <- acs_with_age_updated %>%
+  filter(EMPSTAT != 0, !(EMPSTATD %in% 13:15), GQ != 3) %>%
+  group_by(YEAR, age_grp) %>%
+  summarise(
+    total_pop = sum(ifelse(EMPSTAT %in% c(1, 2, 3), PERWT, 0), na.rm = TRUE),
+      in_labfor = sum(ifelse(EMPSTAT %in% c(1, 2), PERWT, 0), na.rm = TRUE),
+      out_labfor = sum(ifelse(EMPSTAT == 3, PERWT, 0), na.rm = TRUE),
+      unemp = sum(ifelse(EMPSTAT == 2, PERWT, 0), na.rm = TRUE),
+      .groups = "drop"
+  ) %>%
+  mutate(
+    labfor_rate = (in_labfor / total_pop) * 100,
+      out_labfor_pct = (out_labfor / total_pop) * 100,
+      unemp_rate = (unemp / in_labfor) * 100,
+      etop_ratio = (in_labfor-unemp)/total_pop * 100
+  ) %>%
+  collect()
+```
+
+## LFPR by Age Visualization Updated
+
+#### Puerto Ricans Updated
+
+```{r LFPR Age Group Visualization, message=FALSE,warning=FALSE}
+ggplot(pr_age_lf_rate_updated, aes(x = YEAR, y = labfor_rate, color = age_grp)) +
+  geom_line(size = 1) +
+  geom_point() +
+  important_years_lines +
+  my_theme +
+  labs(
+    title = "Labor Force Participation Rate for Puerto Ricans in the US by Age Group",
+    x = "Year",
+    y = "Participation Rate (%)"
+  )
+```
+
+#### Total US Population Updated
+
+```{r LFPR Age Group Visualization message=FALSE,warning=FALSE}
+ggplot(age_lf_rate_updated, aes(x = YEAR, y = labfor_rate, color = age_grp)) +
+  geom_line(size = 1) +
+  geom_point() +
+  important_years_lines +
+  my_theme +
+  labs(
+    title = "Labor Force Participation Rate for US Population by Age Group",
+    x = "Year",
+    y = "Participation Rate (%)"
+  )
+```
+
+## LFPR by Age by Sex
+
+```{r}
+
+# Calculate for PR in US by Age Group
+pr_age_lf_rate_us <- acs_with_age %>%
+  filter(HISPAN == 2 | HISPAND == 200 | ANCESTR1 == 261, AGE >= 16, 
+         EMPSTAT != 0, !(EMPSTATD %in% 13:15), GQ != 3,
+         SEX != 9) %>%
+  group_by(YEAR, age_grp,SEX) %>%
+  summarise(
+    total_pop = sum(ifelse(EMPSTAT %in% c(1, 2, 3), PERWT, 0), na.rm = TRUE),
+      in_labfor = sum(ifelse(EMPSTAT %in% c(1, 2), PERWT, 0), na.rm = TRUE),
+      out_labfor = sum(ifelse(EMPSTAT == 3, PERWT, 0), na.rm = TRUE),
+      unemp = sum(ifelse(EMPSTAT == 2, PERWT, 0), na.rm = TRUE),
+      .groups = "drop"
+  ) %>%
+  mutate(
+      sex = case_when(SEX == 1 ~ "Male",
+                      SEX == 2 ~ "Female"),
+    labfor_rate = (in_labfor / total_pop) * 100,
+      out_labfor_pct = (out_labfor / total_pop) * 100,
+      unemp_rate = (unemp / in_labfor) * 100,
+      etop_ratio = (in_labfor-unemp)/total_pop * 100
+  ) %>%
+  collect()
+
+age_lf_rate_us <- acs_with_age %>%
+  filter(EMPSTAT != 0, !(EMPSTATD %in% 13:15), GQ != 3,
+         SEX != 9) %>%
+  group_by(YEAR, age_grp,SEX) %>%
+  summarise(
+    total_pop = sum(ifelse(EMPSTAT %in% c(1, 2, 3), PERWT, 0), na.rm = TRUE),
+      in_labfor = sum(ifelse(EMPSTAT %in% c(1, 2), PERWT, 0), na.rm = TRUE),
+      out_labfor = sum(ifelse(EMPSTAT == 3, PERWT, 0), na.rm = TRUE),
+      unemp = sum(ifelse(EMPSTAT == 2, PERWT, 0), na.rm = TRUE),
+      .groups = "drop"
+  ) %>%
+  mutate(
+      sex = case_when(SEX == 1 ~ "Male",
+                      SEX == 2 ~ "Female"),
+    labfor_rate = (in_labfor / total_pop) * 100,
+      out_labfor_pct = (out_labfor / total_pop) * 100,
+      unemp_rate = (unemp / in_labfor) * 100,
+      etop_ratio = (in_labfor-unemp)/total_pop * 100
+  ) %>%
+  collect()
+```
+
+## LFPR by Age Visualization by Sex
+
+#### Puerto Ricans by Sex
+
+```{r LFPR Age Group Visualization, message=FALSE,warning=FALSE}
+ggplot(pr_age_lf_rate_us, aes(x = YEAR, y = labfor_rate, color = age_grp)) +
+  geom_line(size = 1) +
+  geom_point() +
+  facet_wrap(~ sex) +                       
+  important_years_lines +
+  my_theme +
+  labs(
+    title = "Labor Force Participation Rate for Puerto Ricans in the US by Age Group",
+    x = "Year",
+    y = "Participation Rate (%)"
+  )
+```
+
+#### Total US Population by Sex
+
+```{r LFPR Age Group Visualization message=FALSE,warning=FALSE}
+ggplot(pr_age_lf_rate_us, aes(x = YEAR, y = labfor_rate, color = age_grp)) +
+  geom_line(size = 1) +
+  geom_point() +
+  facet_wrap(~ sex) +                       
+  important_years_lines +
+  my_theme +
+  labs(
+    title = "Labor Force Participation Rate for Puerto Ricans in the US by Age Group",
+    x = "Year",
+    y = "Participation Rate (%)"
+  )
+```
+
+
