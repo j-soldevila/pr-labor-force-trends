@@ -195,7 +195,7 @@ ggplot() +
 ## Not surprising, LFPR varies between male and females.
 
 ```{r Calculations for LFPR for PR and US pop by sex, message=FALSE,warning=FALSE}
-pr_lbafor_sex <- data_hist %>%
+pr_labfor_sex <- data_hist %>%
   filter(
     HISPAN == 2 | HISPAND == 200 | ANCESTR1 == 261,
     AGE >= 16, EMPSTAT != 0, !(EMPSTATD %in% 13:15), GQ != 3,
@@ -221,7 +221,7 @@ pr_lbafor_sex <- data_hist %>%
   ) %>%
   collect()
 
-us_lbafor_sex <- data_hist %>%
+us_labfor_sex <- data_hist %>%
   filter(
     AGE >= 16, EMPSTAT != 0, !(EMPSTATD %in% 13:15), GQ != 3,
     SEX != 9
@@ -253,12 +253,12 @@ us_lbafor_sex <- data_hist %>%
 
 ```{r Distribution by sex, message=FALSE, warning=FALSE}
 # Distribution of Puerto Ricans by sex
-pr_lbafor_sex <- pr_lbafor_sex |>
+pr_labfor_sex <- pr_labfor_sex |>
   group_by(YEAR) |>
   mutate(pct = (total_pop / sum(total_pop) * 100)) %>%
   ungroup()
 
-ggplot(pr_lbafor_sex, aes(x = YEAR, y = pct, fill = sex)) +
+ggplot(pr_labfor_sex, aes(x = YEAR, y = pct, fill = sex)) +
   geom_col(position = "dodge") +
   labs(
     title = "PR Population Percentage by Sex Over Time",
@@ -270,12 +270,12 @@ ggplot(pr_lbafor_sex, aes(x = YEAR, y = pct, fill = sex)) +
   scale_x_continuous(breaks = seq(1950, 2020, by = 10))
 
 # Distribution of US Population by sex
-us_lbafor_sex <- us_lbafor_sex |>
+us_labfor_sex <- us_labfor_sex |>
   group_by(YEAR) |>
   mutate(pct = (total_pop / sum(total_pop) * 100)) %>%
   ungroup()
 
-ggplot(us_lbafor_sex, aes(x = YEAR, y = pct, fill = sex)) +
+ggplot(us_labfor_sex, aes(x = YEAR, y = pct, fill = sex)) +
   geom_col(position = "dodge") +
   labs(
     title = "US Population Percentage by Sex Over Time",
@@ -292,11 +292,11 @@ ggplot(us_lbafor_sex, aes(x = YEAR, y = pct, fill = sex)) +
 ```{r LFPR by sex, message=FALSE, warning=FALSE}
 # We can now visualize the Puerto Rican population in the labor force by sex since 1950.
 ggplot() +
-  geom_line(data = pr_lbafor_sex, aes(
+  geom_line(data = pr_labfor_sex, aes(
     x = YEAR, y = labfor_rate,
     color = sex
   )) +
-  geom_point(data = pr_lbafor_sex, aes(
+  geom_point(data = pr_labfor_sex, aes(
     x = YEAR, y = labfor_rate,
     color = sex
   )) +
@@ -310,11 +310,11 @@ ggplot() +
 
 # We can now visualize the total US population in the labor force by sex since 1950.
 ggplot() +
-  geom_line(data = us_lbafor_sex, aes(
+  geom_line(data = us_labfor_sex, aes(
     x = YEAR, y = labfor_rate,
     color = sex
   )) +
-  geom_point(data = us_lbafor_sex, aes(
+  geom_point(data = us_labfor_sex, aes(
     x = YEAR, y = labfor_rate,
     color = sex
   )) +
@@ -1178,7 +1178,7 @@ ggplot(ind_sector_data, aes(x = YEAR, y = workers, color = ind_sector)) +
 ```
 
 ### Visualize Total workers by Industry
-```{r US workers by Industry, message=FALSE, warning=FALSEt}
+```{r US workers by Industry, message=FALSE, warning=FALSE}
 # Using facet_wrap to clearly view trends across 20+ sectors without overlap
 ggplot(ind_sector_data_us, aes(x = YEAR, y = workers, color = ind_sector)) +
   geom_line(size = 1) +
@@ -1220,7 +1220,7 @@ print(head(ind_change, 5))
 print(tail(ind_change, 5))
 ```
 
-```{r Total Pop percent poing change calc, message=FALSE, warning=FALSEe}
+```{r Total Pop percent poing change calc, message=FALSE, warning=FALSE}
 # Calculate the percentage point shift from the earliest to latest available year
 ind_change_us <- ind_sector_data_us %>%
   group_by(ind_sector) %>%
@@ -1261,7 +1261,7 @@ ggplot(ind_change, aes(x = first_share, y = reorder(ind_sector, first_share))) +
 
 ### Workforce Share by Industry 1950 to 2010
 
-```{r Puerto Rican workforce share by industry, message=, warning=FALSE}
+```{r Puerto Rican workforce share by industry, message=FALSE, warning=FALSE}
 ggplot(ind_sector_data, aes(x = pct_workers, y = ind_sector, fill = ind_sector)) +
   # Changed from line/point to a bar chart
   geom_col(fill = "#2c3e50", alpha = 0.9) +
