@@ -2,7 +2,7 @@
 title: "010_pr_labor_historical"
 author: "Jorge R. Soldevila Irizarry"
 date: "`r Sys.Date()`"
-output: html_document
+output: github_document
 ---
 
 ```{r setup, include=FALSE}
@@ -18,14 +18,11 @@ source("00_project_setup.R")
 # Puerto Ricans in the US Labor Force 1950-2010
 
 ```{r, Calculate estimates for Puerto Ricans and Total US Pop, message=FALSE, warning=FALSE}
-pr_labfor_50_10 <- calculate_lfpr(data_hist, HISPAN == 2 |
-  HISPAND == 200 |
-  ANCESTR1 == 261)
-
-us_labfor_50_10 <- calculate_lfpr(data_hist)
+pr_labfor_50_10 <- calculate_lfpr(data_hist, pr_filter = TRUE)
+us_labfor_50_10 <- calculate_lfpr(data_hist, pr_filter = FALSE)
 ```
 
-## We can visualize how the Puerto Rican population that can work, that is, non-institutionalized, 16 years and over population, has changed over time.
+## Change in Working Age Puerto Ricans 1950 to 2010
 
 ```{r Visualize Total Puerto Ricans working age, message=FALSE,warning=FALSE}
 # We can now visualize the working age Puerto Rican population since 1950
@@ -33,7 +30,7 @@ ggplot() +
   geom_line(
     data = pr_labfor_50_10,
     aes(x = YEAR, y = total_pop, color = "PR in US"),
-    size = 1
+    linewidth = 1
   ) +
   geom_point(
     data = pr_labfor_50_10,
@@ -58,7 +55,7 @@ ggplot() +
   my_theme +
   labs(title = "Working age non-institutionalized Puerto Ricans, 1950-2024", x = "Year", y = "Estimated Population") +
   scale_y_continuous(labels = label_number(scale = 1e-6, suffix = "M")) +
-  scale_x_continuous(breaks = seq(1950, 2020, by = 10))
+  scale_x_continuous(breaks = seq(1950, 2024, by = 10))
 ```
 
 ## We can visualize now the population that was in the labor force
@@ -70,7 +67,7 @@ ggplot() +
   geom_line(
     data = pr_labfor_50_10,
     aes(x = YEAR, y = in_labfor, color = "PR in US"),
-    size = 1
+    linewidth = 1
   ) +
   geom_point(
     data = pr_labfor_50_10,
@@ -94,7 +91,7 @@ ggplot() +
   my_theme +
   labs(title = "Puerto Ricans in the Labor Force, 1950-2024", x = "Year", y = "Estimated Population") +
   scale_y_continuous(labels = label_number(scale = 1e-6, suffix = "M")) +
-  scale_x_continuous(breaks = seq(1950, 2020, by = 10))
+  scale_x_continuous(breaks = seq(1950, 2024, by = 10))
 ```
 
 ## We can now visualize the Labor Force Participation Rate for Puerto Ricans
@@ -106,7 +103,7 @@ ggplot() +
   geom_line(
     data = pr_labfor_50_10,
     aes(x = YEAR, y = labfor_rate, color = "PR"),
-    size = 1
+    linewidth = 1
   ) +
   geom_point(
     data = pr_labfor_50_10,
@@ -116,7 +113,7 @@ ggplot() +
   geom_line(
     data = us_labfor_50_10,
     aes(x = YEAR, y = labfor_rate, color = "US"),
-    size = 1
+    linewidth = 1
   ) +
   geom_point(
     data = us_labfor_50_10,
@@ -124,39 +121,184 @@ ggplot() +
     size = 2
   ) +
   my_theme +
-  scale_color_manual(values = c("PR" = "orange", "US" = "blue")) +
+  scale_color_manual(values = c("PR" = "#d95f02", "US" = "#7570b3")) +
   labs(title = "Labor Force Participaiton Rate for Puerto Ricans and Total Population in US, 1950-2024", x = "Year", y = "Rate") +
   scale_x_continuous(breaks = seq(1950, 2024, by = 10))
+```
+
+## Age Adjusted Labor Force Participation Rate
+
+```{r Age adjusted calculation, message=FALSE, warning=FALSE}
+
+pr_lf_rate_us <- calculate_age_adjusted_lfpr(data_hist, HISPAN == 2 | HISPAND == 200
+                                             | ANCESTR1 == 261)
+lf_rate_us <- calculate_age_adjusted_lfpr(data_hist)
+```
+
+### Visualize Age Adjusted labor force participation rate
+
+```{r Age adjusted LFPR visualization, message=FALSE, warning=FALSE}
+p<-ggplot() +
+  geom_line(
+    data = pr_lf_rate_us,
+    aes(x = YEAR, y = adjusted_lfpr, color = "Puerto Rican"),
+    linewidth = 1.5 # Increased from 1 for screen visibility
+  ) +
+  geom_point(
+    data = pr_lf_rate_us,
+    aes(x = YEAR, y = adjusted_lfpr, color = "Puerto Rican"),
+    size = 3 # Increased from 2 for screen visibility
+  ) +
+  geom_line(
+    data = lf_rate_us,
+    aes(x = YEAR, y = adjusted_lfpr, color = "Total US"),
+    linewidth = 1.5
+  ) +
+  geom_point(
+    data = lf_rate_us,
+    aes(x = YEAR, y = adjusted_lfpr, color = "Total US"),
+    size = 3
+  ) +
+  my_theme +
+  # Expanded labels for clarity
+  scale_color_manual(values = c("Puerto Rican" = "#d95f02", "Total US" = "#7570b3")) +
+  # Appends a % sign to the y-axis values
+  scale_y_continuous(labels = function(x) paste0(x, "%")) + 
+  scale_x_continuous(breaks = seq(1950, 2024, by = 10)) +
+  labs(
+    title = "Age-Adjusted Labor Force Participation Rates",
+    subtitle = "Comparing Puerto Rican workers to the total US population (1950-2024)",
+    x = NULL, # 'Year' is obvious, so we remove the label to save space
+    y = "Participation Rate"
+  ) +
+  # Overriding my_theme defaults to make text presentation-sized
+  theme(
+    plot.title = element_text(size = 18, face = "bold"),
+    plot.subtitle = element_text(size = 14, color = "grey30"),
+    axis.text = element_text(size = 12),
+    axis.title = element_text(size = 14),
+    legend.text = element_text(size = 14)
+  )
+
+print(p)
+
+ggsave(
+  filename = "figures/age_adj_pr_lfpr_presentation.png", 
+  plot = p, 
+  width = 10,           # Width in inches (standard for 16:9 slides)
+  height = 5.625,       # Height in inches (10 / (16/9) = 5.625)
+  dpi = 300,            # 300 DPI ensures it won't look pixelated on a projector
+  bg = "white"          # Ensures the background is solid white, not transparent
+)
+```
+
+\
+
+## Employment-to-populaiton Ratio adjusted
+
+```{r Age adjusted Emp-Pop Ratio visualization, message=FALSE, warning=FALSE}
+p<-ggplot() +
+  geom_line(
+    data = pr_lf_rate_us,
+    aes(x = YEAR, y = adjusted_etop, color = "Puerto Rican"),
+    linewidth = 1.5 # Increased from 1 for screen visibility
+  ) +
+  geom_point(
+    data = pr_lf_rate_us,
+    aes(x = YEAR, y = adjusted_etop, color = "Puerto Rican"),
+    size = 3 # Increased from 2 for screen visibility
+  ) +
+  geom_line(
+    data = lf_rate_us,
+    aes(x = YEAR, y = adjusted_etop, color = "Total US"),
+    linewidth = 1.5
+  ) +
+  geom_point(
+    data = lf_rate_us,
+    aes(x = YEAR, y = adjusted_etop, color = "Total US"),
+    size = 3
+  ) +
+  my_theme +
+  # Expanded labels for clarity
+  scale_color_manual(values = c("Puerto Rican" = "#d95f02", "Total US" = "#7570b3")) +
+  # Appends a % sign to the y-axis values
+  scale_y_continuous(labels = function(x) paste0(x, "%")) + 
+  scale_x_continuous(breaks = seq(1950, 2024, by = 10)) +
+  labs(
+    title = "Age-Adjusted Employment-to-Population Ratio",
+    subtitle = "Comparing Puerto Rican workers to the total US population (1950-2024)",
+    x = NULL, # 'Year' is obvious, so we remove the label to save space
+    y = "Ratio"
+  ) +
+  # Overriding my_theme defaults to make text presentation-sized
+  theme(
+    plot.title = element_text(size = 18, face = "bold"),
+    plot.subtitle = element_text(size = 14, color = "grey30"),
+    axis.text = element_text(size = 12),
+    axis.title = element_text(size = 14),
+    legend.text = element_text(size = 14)
+  )
+
+print(p)
+
+ggsave(
+  filename = "figures/age_adj_pr_etop_presentation.png", 
+  plot = p, 
+  width = 10,           # Width in inches (standard for 16:9 slides)
+  height = 5.625,       # Height in inches (10 / (16/9) = 5.625)
+  dpi = 300,            # 300 DPI ensures it won't look pixelated on a projector
+  bg = "white"          # Ensures the background is solid white, not transparent
+)
+
 ```
 
 ## Unemployment Rate for Puerto Ricans and Total Population
 
 ```{r Unemployment Rate Visualization, message=FALSE, warning=FALSE}
-ggplot() +
-  geom_line(
-    data = pr_labfor_50_10,
-    aes(x = YEAR, y = unemp_rate, color = "PR"),
-    size = 1
-  ) +
-  geom_point(
-    data = pr_labfor_50_10,
-    aes(x = YEAR, y = unemp_rate, color = "PR"),
-    size = 2
-  ) +
-  geom_line(
-    data = us_labfor_50_10,
-    aes(x = YEAR, y = unemp_rate, color = "US"),
-    size = 1
-  ) +
-  geom_point(
-    data = us_labfor_50_10,
-    aes(x = YEAR, y = unemp_rate, color = "US"),
-    size = 2
-  ) +
+p<-ggplot() +
+  geom_line(data = pr_labfor_50_10,
+            aes(x = YEAR, y = unemp_rate, color = "Puerto Rican"),
+            linewidth = 1.5) +
+  geom_point(data = pr_labfor_50_10,
+             aes(x = YEAR, y = unemp_rate, color = "Puerto Rican"),
+             size = 2) +
+  geom_line(data = us_labfor_50_10,
+            aes(x = YEAR, y = unemp_rate, color = "Total US"),
+            linewidth = 1.5) +
+  geom_point(data = us_labfor_50_10,
+             aes(x = YEAR, y = unemp_rate, color = "Total US"),
+             size = 2) +
   my_theme +
-  scale_color_manual(values = c("PR" = "orange", "US" = "blue")) +
-  labs(title = "Unemployment Rate for Puerto Ricans and Total Population in US, 1950-2024", x = "Year", y = "Rate") +
-  scale_x_continuous(breaks = seq(1950, 2024, by = 10))
+  scale_color_manual(values = c(
+    "Puerto Rican" = "#d95f02",
+    "Total US" = "#7570b3"
+  )) +
+  labs(title = "Historical Unemployment Rates", 
+       subtitle = "Comparing Puerto Rican workers to the total US population (1950-2024)",
+       x = NULL, # Removed "Year" since the x-axis numbers make it obvious
+       y = "Unemployment Rate") +
+  scale_y_continuous(labels = function(x) paste0(x, "%")) + 
+  scale_x_continuous(breaks = seq(1950, 2024, by = 10)) +
+  # Overriding my_theme defaults to make text presentation-sized
+  theme(
+    plot.title = element_text(size = 18, face = "bold"),
+    plot.subtitle = element_text(size = 14, color = "grey30"),
+    axis.text = element_text(size = 12),
+    axis.title = element_text(size = 14),
+    legend.text = element_text(size = 14)
+  )
+
+print(p)
+
+
+ggsave(
+  filename = "figures/pr_unemp_presentation.png", 
+  plot = p, 
+  width = 10,           # Width in inches (standard for 16:9 slides)
+  height = 5.625,       # Height in inches (10 / (16/9) = 5.625)
+  dpi = 300,            # 300 DPI ensures it won't look pixelated on a projector
+  bg = "white"          # Ensures the background is solid white, not transparent
+)
 ```
 
 ## Population Not in Labor Force for Puerto Ricans and Total Population
@@ -166,7 +308,7 @@ ggplot() +
   geom_line(data = pr_labfor_50_10, aes(
     x = YEAR, y = out_labfor_pct,
     color = "PR"
-  ), size = 1) +
+  )) +
   geom_point(data = pr_labfor_50_10, aes(
     x = YEAR, y = out_labfor_pct,
     color = "PR"
@@ -174,7 +316,7 @@ ggplot() +
   geom_line(data = us_labfor_50_10, aes(
     x = YEAR, y = out_labfor_pct,
     color = "US"
-  ), size = 1) +
+  )) +
   geom_point(data = us_labfor_50_10, aes(
     x = YEAR, y = out_labfor_pct,
     color = "US"
@@ -195,56 +337,13 @@ ggplot() +
 ## Not surprising, LFPR varies between male and females.
 
 ```{r Calculations for LFPR for PR and US pop by sex, message=FALSE,warning=FALSE}
-pr_labfor_sex <- data_hist %>%
-  filter(
-    HISPAN == 2 | HISPAND == 200 | ANCESTR1 == 261,
-    AGE >= 16, EMPSTAT != 0, !(EMPSTATD %in% 13:15), GQ != 3,
-    SEX != 9
-  ) %>%
-  group_by(YEAR, SEX) %>%
-  summarise(
-    total_pop = sum(ifelse(EMPSTAT %in% c(1, 2, 3), PERWT, 0), na.rm = TRUE),
-    in_labfor = sum(ifelse(EMPSTAT %in% c(1, 2), PERWT, 0), na.rm = TRUE),
-    out_labfor = sum(ifelse(EMPSTAT == 3, PERWT, 0), na.rm = TRUE),
-    unemp = sum(ifelse(EMPSTAT == 2, PERWT, 0), na.rm = TRUE),
-    .groups = "drop"
-  ) %>%
-  mutate(
-    sex = case_when(
-      SEX == 1 ~ "Male",
-      SEX == 2 ~ "Female"
-    ),
-    labfor_rate = (in_labfor / total_pop) * 100,
-    out_labfor_pct = (out_labfor / total_pop) * 100,
-    unemp_rate = (unemp / in_labfor) * 100,
-    etop_ratio = (in_labfor - unemp) / total_pop * 100
-  ) %>%
-  collect()
+data_hist_sex <- data_hist %>% filter(SEX != 9) %>% 
+  mutate(sex_label = ifelse(SEX == 1, "Male", "Female"))
 
-us_labfor_sex <- data_hist %>%
-  filter(
-    AGE >= 16, EMPSTAT != 0, !(EMPSTATD %in% 13:15), GQ != 3,
-    SEX != 9
-  ) %>%
-  group_by(YEAR, SEX) %>%
-  summarise(
-    total_pop = sum(ifelse(EMPSTAT %in% c(1, 2, 3), PERWT, 0), na.rm = TRUE),
-    in_labfor = sum(ifelse(EMPSTAT %in% c(1, 2), PERWT, 0), na.rm = TRUE),
-    out_labfor = sum(ifelse(EMPSTAT == 3, PERWT, 0), na.rm = TRUE),
-    unemp = sum(ifelse(EMPSTAT == 2, PERWT, 0), na.rm = TRUE),
-    .groups = "drop"
-  ) %>%
-  mutate(
-    sex = case_when(
-      SEX == 1 ~ "Male",
-      SEX == 2 ~ "Female"
-    ),
-    labfor_rate = (in_labfor / total_pop) * 100,
-    out_labfor_pct = (out_labfor / total_pop) * 100,
-    unemp_rate = (unemp / in_labfor) * 100,
-    etop_ratio = (in_labfor - unemp) / total_pop * 100
-  ) %>%
-  collect()
+pr_labfor_sex <- calculate_lfpr(data_hist_sex, pr_filter = TRUE, 
+                                grp_vars = "sex_label")
+us_labfor_sex <- calculate_lfpr(data_hist_sex, pr_filter = FALSE, 
+                                grp_vars = "sex_label")
 ```
 
 ## Visualize trends over years by sex
@@ -330,34 +429,17 @@ ggplot() +
 ## We can also analyze change by place of birth
 
 ```{r Puerto Ricans in Labor Force by place of birth, message=FALSE,warning=FALSE}
-pr_labfor_bpl <- data_hist %>%
-  filter(
-    HISPAN == 2 | HISPAND == 200 | ANCESTR1 == 261,
-    AGE >= 16, EMPSTAT != 0, !(EMPSTATD %in% 13:15), GQ != 3,
-  ) %>%
-  mutate(
-    plc_bth = case_when(
+pr_labfor_bpl <- calculate_lfpr(
+  data_hist %>%
+    mutate(plc_bth = case_when(
       BPL <= 56 ~ "US",
       BPL == 110 ~ "Puerto Rico",
-      TRUE ~ NA
-    )
-  ) %>%
-  filter(!is.na(plc_bth)) %>%
-  group_by(YEAR, plc_bth) %>%
-  summarise(
-    total_pop = sum(ifelse(EMPSTAT %in% c(1, 2, 3), PERWT, 0), na.rm = TRUE),
-    in_labfor = sum(ifelse(EMPSTAT %in% c(1, 2), PERWT, 0), na.rm = TRUE),
-    out_labfor = sum(ifelse(EMPSTAT == 3, PERWT, 0), na.rm = TRUE),
-    unemp = sum(ifelse(EMPSTAT == 2, PERWT, 0), na.rm = TRUE),
-    .groups = "drop"
-  ) %>%
-  mutate(
-    labfor_rate = (in_labfor / total_pop) * 100,
-    out_labfor_pct = (out_labfor / total_pop) * 100,
-    unemp_rate = (unemp / in_labfor) * 100,
-    etop_ratio = (in_labfor - unemp) / total_pop * 100
-  ) %>%
-  collect()
+      TRUE ~ NA_character_
+    )) %>%
+    filter(!is.na(plc_bth)),
+  pr_filter = TRUE,
+  grp_vars = "plc_bth"
+)
 ```
 
 # We can now visualize the Puerto Rican population in the labor force by Place of Birth.
@@ -398,44 +480,10 @@ acs_with_age <- data_hist %>%
 
 ```{r LFPR Age Group calculation, message=FALSE,warning=FALSE}
 # Calculate for PR in US by Age Group
-pr_age_lf_rate_us <- acs_with_age %>%
-  filter(
-    HISPAN == 2 | HISPAND == 200 | ANCESTR1 == 261, AGE >= 16,
-    EMPSTAT != 0, !(EMPSTATD %in% 13:15), GQ != 3
-  ) %>%
-  group_by(YEAR, age_grp) %>%
-  summarise(
-    total_pop = sum(ifelse(EMPSTAT %in% c(1, 2, 3), PERWT, 0), na.rm = TRUE),
-    in_labfor = sum(ifelse(EMPSTAT %in% c(1, 2), PERWT, 0), na.rm = TRUE),
-    out_labfor = sum(ifelse(EMPSTAT == 3, PERWT, 0), na.rm = TRUE),
-    unemp = sum(ifelse(EMPSTAT == 2, PERWT, 0), na.rm = TRUE),
-    .groups = "drop"
-  ) %>%
-  mutate(
-    labfor_rate = (in_labfor / total_pop) * 100,
-    out_labfor_pct = (out_labfor / total_pop) * 100,
-    unemp_rate = (unemp / in_labfor) * 100,
-    etop_ratio = (in_labfor - unemp) / total_pop * 100
-  ) %>%
-  collect()
+pr_age_lf_rate_us <- calculate_lfpr(acs_with_age, pr_filter = TRUE, grp_vars = "age_grp")
 
-age_lf_rate_us <- acs_with_age %>%
-  filter(AGE >= 16, EMPSTAT != 0, !(EMPSTATD %in% 13:15), GQ != 3) %>%
-  group_by(YEAR, age_grp) %>%
-  summarise(
-    total_pop = sum(ifelse(EMPSTAT %in% c(1, 2, 3), PERWT, 0), na.rm = TRUE),
-    in_labfor = sum(ifelse(EMPSTAT %in% c(1, 2), PERWT, 0), na.rm = TRUE),
-    out_labfor = sum(ifelse(EMPSTAT == 3, PERWT, 0), na.rm = TRUE),
-    unemp = sum(ifelse(EMPSTAT == 2, PERWT, 0), na.rm = TRUE),
-    .groups = "drop"
-  ) %>%
-  mutate(
-    labfor_rate = (in_labfor / total_pop) * 100,
-    out_labfor_pct = (out_labfor / total_pop) * 100,
-    unemp_rate = (unemp / in_labfor) * 100,
-    etop_ratio = (in_labfor - unemp) / total_pop * 100
-  ) %>%
-  collect()
+age_lf_rate_us <- calculate_lfpr(acs_with_age, pr_filter = FALSE, 
+                                 grp_vars = "age_grp")
 ```
 
 ## LFPR by Age Visualization
@@ -444,7 +492,7 @@ age_lf_rate_us <- acs_with_age %>%
 
 ```{r LFPR Age Group Visualization, message=FALSE,warning=FALSE}
 ggplot(pr_age_lf_rate_us, aes(x = YEAR, y = labfor_rate, color = age_grp)) +
-  geom_line(size = 1) +
+  geom_line(linewidth = 1) +
   geom_point() +
   # important_years_lines +
   my_theme +
@@ -460,7 +508,7 @@ ggplot(pr_age_lf_rate_us, aes(x = YEAR, y = labfor_rate, color = age_grp)) +
 
 ```{r LFPR Age Group Visualization message=FALSE,warning=FALSE}
 ggplot(age_lf_rate_us, aes(x = YEAR, y = labfor_rate, color = age_grp)) +
-  geom_line(size = 1) +
+  geom_line(linewidth = 1) +
   geom_point() +
   # important_years_lines +
   my_theme +
@@ -491,45 +539,10 @@ acs_with_age_updated <- data_hist %>%
 ```
 
 ```{r LFPR Age Group calculation, message=FALSE,warning=FALSE}
-# Calculate for PR in US by Age Group
-pr_age_lf_rate_updated <- acs_with_age_updated %>%
-  filter(
-    HISPAN == 2 | HISPAND == 200 | ANCESTR1 == 261, AGE >= 16,
-    EMPSTAT != 0, !(EMPSTATD %in% 13:15), GQ != 3
-  ) %>%
-  group_by(YEAR, age_grp) %>%
-  summarise(
-    total_pop = sum(ifelse(EMPSTAT %in% c(1, 2, 3), PERWT, 0), na.rm = TRUE),
-    in_labfor = sum(ifelse(EMPSTAT %in% c(1, 2), PERWT, 0), na.rm = TRUE),
-    out_labfor = sum(ifelse(EMPSTAT == 3, PERWT, 0), na.rm = TRUE),
-    unemp = sum(ifelse(EMPSTAT == 2, PERWT, 0), na.rm = TRUE),
-    .groups = "drop"
-  ) %>%
-  mutate(
-    labfor_rate = (in_labfor / total_pop) * 100,
-    out_labfor_pct = (out_labfor / total_pop) * 100,
-    unemp_rate = (unemp / in_labfor) * 100,
-    etop_ratio = (in_labfor - unemp) / total_pop * 100
-  ) %>%
-  collect()
-
-age_lf_rate_updated <- acs_with_age_updated %>%
-  filter(AGE >= 16, EMPSTAT != 0, !(EMPSTATD %in% 13:15), GQ != 3) %>%
-  group_by(YEAR, age_grp) %>%
-  summarise(
-    total_pop = sum(ifelse(EMPSTAT %in% c(1, 2, 3), PERWT, 0), na.rm = TRUE),
-    in_labfor = sum(ifelse(EMPSTAT %in% c(1, 2), PERWT, 0), na.rm = TRUE),
-    out_labfor = sum(ifelse(EMPSTAT == 3, PERWT, 0), na.rm = TRUE),
-    unemp = sum(ifelse(EMPSTAT == 2, PERWT, 0), na.rm = TRUE),
-    .groups = "drop"
-  ) %>%
-  mutate(
-    labfor_rate = (in_labfor / total_pop) * 100,
-    out_labfor_pct = (out_labfor / total_pop) * 100,
-    unemp_rate = (unemp / in_labfor) * 100,
-    etop_ratio = (in_labfor - unemp) / total_pop * 100
-  ) %>%
-  collect()
+pr_age_lf_rate_updated <- calculate_lfpr(acs_with_age_updated, 
+                                         pr_filter = TRUE, grp_vars = "age_grp")
+age_lf_rate_updated <- calculate_lfpr(acs_with_age_updated, 
+                                      pr_filter = FALSE, grp_vars = "age_grp")
 ```
 
 ## LFPR by Age Visualization Updated
@@ -583,7 +596,8 @@ ggplot(pr_age_lf_rate_updated, aes(x = YEAR, y = labfor_rate, color = age_grp, l
 #### Total US Population Updated
 
 ```{r LFPR Age Group Visualization message=FALSE,warning=FALSE}
-ggplot(age_lf_rate_updated, aes(x = YEAR, y = labfor_rate, color = age_grp, linewidth = age_grp)) +
+ggplot(age_lf_rate_updated, aes(x = YEAR, y = labfor_rate, color = age_grp, 
+                                linewidth = age_grp)) +
   geom_line() +
   geom_point(aes(size = age_grp), show.legend = FALSE) + # Scale points to match
   scale_color_manual(values = my_colors) +
@@ -705,51 +719,8 @@ acs_with_educ <- data_hist %>%
 
 ```{r Calculate Education Attainment, message=FALSE,warning=FALSE}
 # Calculate for PR in US by Education Group
-pr_educ_lf_rate_us <- acs_with_educ %>%
-  filter(
-    HISPAN == 2 | HISPAND == 200 | ANCESTR1 == 261,
-    AGE >= 25,
-    EMPSTAT != 0, !(EMPSTATD %in% 13:15), GQ != 3
-  ) %>%
-  group_by(YEAR, educ_grp) %>%
-  summarise(
-    total_pop = sum(ifelse(EMPSTAT %in% c(1, 2, 3), PERWT, 0), na.rm = TRUE),
-    in_labfor = sum(ifelse(EMPSTAT %in% c(1, 2), PERWT, 0), na.rm = TRUE),
-    out_labfor = sum(ifelse(EMPSTAT == 3, PERWT, 0), na.rm = TRUE),
-    unemp = sum(ifelse(EMPSTAT == 2, PERWT, 0), na.rm = TRUE),
-    .groups = "drop_last"
-  ) %>%
-  mutate(
-    labfor_rate = (in_labfor / total_pop) * 100,
-    out_labfor_pct = (out_labfor / total_pop) * 100,
-    unemp_rate = (unemp / in_labfor) * 100,
-    etop_ratio = (in_labfor - unemp) / total_pop * 100,
-    educ_attainment_pct = (total_pop / sum(total_pop)) * 100
-  ) %>%
-  ungroup() %>%
-  collect()
-
-# Calculate for Total US Population by Education Group
-# Applied AGE >= 25 constraint here as well
-educ_lf_rate_us <- acs_with_educ %>%
-  filter(AGE >= 25, EMPSTAT != 0, !(EMPSTATD %in% 13:15), GQ != 3, ) %>%
-  group_by(YEAR, educ_grp) %>%
-  summarise(
-    total_pop = sum(ifelse(EMPSTAT %in% c(1, 2, 3), PERWT, 0), na.rm = TRUE),
-    in_labfor = sum(ifelse(EMPSTAT %in% c(1, 2), PERWT, 0), na.rm = TRUE),
-    out_labfor = sum(ifelse(EMPSTAT == 3, PERWT, 0), na.rm = TRUE),
-    unemp = sum(ifelse(EMPSTAT == 2, PERWT, 0), na.rm = TRUE),
-    .groups = "drop_last"
-  ) %>%
-  mutate(
-    labfor_rate = (in_labfor / total_pop) * 100,
-    out_labfor_pct = (out_labfor / total_pop) * 100,
-    unemp_rate = (unemp / in_labfor) * 100,
-    etop_ratio = (in_labfor - unemp) / total_pop * 100,
-    educ_attainment_pct = (total_pop / sum(total_pop)) * 100
-  ) %>%
-  ungroup() %>%
-  collect()
+pr_educ_lf_rate_us <- calculate_lfpr(acs_with_educ %>% filter(AGE >= 25), pr_filter = TRUE, grp_vars = "educ_grp")
+educ_lf_rate_us <- calculate_lfpr(acs_with_educ %>% filter(AGE >= 25), pr_filter = FALSE, grp_vars = "educ_grp")
 ```
 
 ### Visualize Educational Attainment per year
@@ -1015,27 +986,10 @@ acs_with_eng <- data_hist %>%
 
 ```{r Calculate English Proficiency, message=FALSE, warning=FALSE}
 # Calculate for PR in US by English Proficiency
-pr_eng_lf_rate_us <- acs_with_eng %>%
-  filter(
-    HISPAN == 2 | HISPAND == 200 | ANCESTR1 == 261, AGE >= 16,
-    EMPSTAT != 0, !(EMPSTATD %in% 13:15), GQ != 3
-  ) %>%
-  group_by(YEAR, eng_grp) %>%
-  summarise(
-    total_pop = sum(ifelse(EMPSTAT %in% c(1, 2, 3), PERWT, 0), na.rm = TRUE),
-    in_labfor = sum(ifelse(EMPSTAT %in% c(1, 2), PERWT, 0), na.rm = TRUE),
-    out_labfor = sum(ifelse(EMPSTAT == 3, PERWT, 0), na.rm = TRUE),
-    unemp = sum(ifelse(EMPSTAT == 2, PERWT, 0), na.rm = TRUE),
-    .groups = "drop_last"
-  ) %>%
-  mutate(
-    labfor_rate = (in_labfor / total_pop) * 100,
-    out_labfor_pct = (out_labfor / total_pop) * 100,
-    unemp_rate = (unemp / in_labfor) * 100,
-    etop_ratio = (in_labfor - unemp) / total_pop * 100,
-    eng_pct = total_pop / sum(total_pop) * 100,
-  ) %>%
-  collect()
+pr_eng_lf_rate_us <- calculate_lfpr(acs_with_eng, pr_filter = TRUE, grp_vars = "eng_grp") %>%
+  group_by(YEAR) %>%
+  mutate(eng_pct = total_pop / sum(total_pop) * 100) %>%
+  ungroup()
 ```
 
 ### Visualize English Proficiency
@@ -1052,107 +1006,101 @@ ggplot(pr_eng_lf_rate_us, aes(x = YEAR, y = labfor_rate, color = eng_grp)) +
   )
 ```
 
-## Industry Analysis
+## Industry and Occupation Analysis
 
 ### Initial data prep
 
+```{r Mapping Industry and Occupaiton Categories, message=FALSE,warning=FALSE}
+mapped_workers_db <- data_hist %>%
+  # Apply base employment filter, correcting the missing GQ != 3
+  filter(AGE >= 16, EMPSTAT == 1, GQ != 3) %>%
+  mutate(
+    # Create a boolean flag for PR status to split the data later
+    is_pr = ifelse(HISPAN %in% c(2) | HISPAND %in% c(200) | ANCESTR1 %in% c(261), TRUE, FALSE),
+    
+    # Map Industries
+    ind_sector = case_when(
+      IND1990 >= 10 & IND1990 <= 32 ~ "01. Agriculture, Forestry, Fishing & Hunting",
+    IND1990 >= 40 & IND1990 <= 50 ~ "02. Mining, Quarrying, & Oil/Gas Extraction",
+    IND1990 >= 450 & IND1990 <= 472 ~ "03. Utilities",
+    IND1990 == 60 ~ "04. Construction",
+    IND1990 >= 100 & IND1990 <= 392 ~ "05. Manufacturing",
+    IND1990 >= 500 & IND1990 <= 571 ~ "06. Wholesale Trade",
+
+    # Excludes 641 (Eating/Drinking Places) to align with modern NAICS grouping
+    (IND1990 >= 580 & IND1990 <= 691) & IND1990 != 641 ~ "07. Retail Trade",
+    IND1990 >= 400 & IND1990 <= 432 ~ "08. Transportation & Warehousing",
+    IND1990 >= 440 & IND1990 <= 442 ~ "09. Information", # Maps 1990 Communications here
+    IND1990 >= 700 & IND1990 <= 711 ~ "10. Finance & Insurance",
+    IND1990 == 712 ~ "11. Real Estate & Rental/Leasing",
+
+    # Merges 1990 Engineering/Architecture/Accounting with related professional codes
+    IND1990 == 841 | (IND1990 >= 881 & IND1990 <= 893) ~ "12. Professional, Scientific, & Tech Services",
+    IND1990 >= 721 & IND1990 <= 741 ~ "13. Administrative, Support, & Waste Mgmt",
+    IND1990 >= 842 & IND1990 <= 860 ~ "14. Educational Services",
+    (IND1990 >= 812 & IND1990 <= 840) | (IND1990 >= 861 & IND1990 <= 873) ~ "15. Health Care & Social Assistance",
+    IND1990 >= 800 & IND1990 <= 810 ~ "16. Arts, Entertainment, & Recreation",
+
+    # Combines 1990 Eating/Drinking places (641) with Hotels/Lodging (762, 770)
+    IND1990 %in% c(641, 762, 770) ~ "17. Accommodation & Food Services",
+    IND1990 %in% c(750, 751, 752, 761, 771, 772, 781, 791) ~ "18. Other Services (Except Public Admin)",
+    IND1990 >= 900 & IND1990 <= 932 ~ "19. Public Administration",
+    IND1990 >= 940 & IND1990 <= 960 ~ "20. Military",
+      TRUE ~ "21. Unclassified / Not in Labor Force"
+    ),
+    
+    # Map Occupations
+    occ_cat1 = case_when(
+      (OCC2010 >= 10 &
+         OCC2010 <= 960) |
+        (OCC2010 >= 2600 &
+           OCC2010 <= 2960) ~ "Management, Business, Entertainment & Media",
+      OCC2010 >= 1000 & OCC2010 <= 1965 ~ "STEM",
+      (OCC2010 >= 2000 &
+         OCC2010 <= 2550) |
+        (OCC2010 >= 4300 &
+           OCC2010 <= 4650) ~ "Education, Community & Social Services",
+      OCC2010 >= 3000 & OCC2010 <= 3655 ~ "Health & Medical",
+      (OCC2010 >= 3700 &
+         OCC2010 <= 3955) |
+        (OCC2010 >= 9000 &
+           OCC2010 <= 9420) ~ "Law Enforcement & Transportation",
+      OCC2010 >= 4000 &
+        OCC2010 <= 4250 ~ "Food, Maintenance, Building & Grounds Cleaning",
+      OCC2010 >= 4700 & OCC2010 <= 4965 ~ "Sales and Related",
+      OCC2010 >= 5000 &
+        OCC2010 <= 5940 ~ "Administrative and Office Support",
+      OCC2010 >= 6005 &
+        OCC2010 <= 7630 ~ "Natural Resources, Construction & Maintenance",
+      (OCC2010 >= 7700 &
+         OCC2010 <= 8965) |
+        (OCC2010 >= 9500 &
+           OCC2010 <= 9750) ~ "Production and Material Moving",
+      OCC2010 >= 9800 & OCC2010 <= 9830 ~ "Military",
+      OCC2010 %in% c(9920, 9999) ~ "Unclassified",
+      TRUE ~ "Unclassified"
+    )
+  )
+```
+
 ```{r Industry Data preparation, message=FALSE, warning=FALSE}
-ind_sector_data <- data_hist %>%
-  filter(
-    HISPAN == 2 | HISPAND == 200 | ANCESTR1 == 261,
-    AGE >= 16,
-    EMPSTAT == 1,
-  ) %>%
-  mutate(ind_sector = case_when(
-    IND1990 >= 10 & IND1990 <= 32 ~ "01. Agriculture, Forestry, Fishing & Hunting",
-    IND1990 >= 40 & IND1990 <= 50 ~ "02. Mining, Quarrying, & Oil/Gas Extraction",
-    IND1990 >= 450 & IND1990 <= 472 ~ "03. Utilities",
-    IND1990 == 60 ~ "04. Construction",
-    IND1990 >= 100 & IND1990 <= 392 ~ "05. Manufacturing",
-    IND1990 >= 500 & IND1990 <= 571 ~ "06. Wholesale Trade",
-
-    # Excludes 641 (Eating/Drinking Places) to align with modern NAICS grouping
-    (IND1990 >= 580 & IND1990 <= 691) & IND1990 != 641 ~ "07. Retail Trade",
-    IND1990 >= 400 & IND1990 <= 432 ~ "08. Transportation & Warehousing",
-    IND1990 >= 440 & IND1990 <= 442 ~ "09. Information", # Maps 1990 Communications here
-    IND1990 >= 700 & IND1990 <= 711 ~ "10. Finance & Insurance",
-    IND1990 == 712 ~ "11. Real Estate & Rental/Leasing",
-
-    # Merges 1990 Engineering/Architecture/Accounting with related professional codes
-    IND1990 == 841 | (IND1990 >= 881 & IND1990 <= 893) ~ "12. Professional, Scientific, & Tech Services",
-    IND1990 >= 721 & IND1990 <= 741 ~ "13. Administrative, Support, & Waste Mgmt",
-    IND1990 >= 842 & IND1990 <= 860 ~ "14. Educational Services",
-    (IND1990 >= 812 & IND1990 <= 840) | (IND1990 >= 861 & IND1990 <= 873) ~ "15. Health Care & Social Assistance",
-    IND1990 >= 800 & IND1990 <= 810 ~ "16. Arts, Entertainment, & Recreation",
-
-    # Combines 1990 Eating/Drinking places (641) with Hotels/Lodging (762, 770)
-    IND1990 %in% c(641, 762, 770) ~ "17. Accommodation & Food Services",
-    IND1990 %in% c(750, 751, 752, 761, 771, 772, 781, 791) ~ "18. Other Services (Except Public Admin)",
-    IND1990 >= 900 & IND1990 <= 932 ~ "19. Public Administration",
-    IND1990 >= 940 & IND1990 <= 960 ~ "20. Military",
-    TRUE ~ "21. Unclassified / Not in Labor Force"
-  )) %>%
+ind_sector_data <- mapped_workers_db %>%
+  filter(is_pr == TRUE) %>%
   group_by(YEAR, ind_sector) %>%
-  summarise(
-    workers = sum(PERWT, na.rm = TRUE),
-    .groups = "drop"
-  ) %>%
-  # 2. Collect into local memory
+  summarise(workers = sum(PERWT, na.rm = TRUE), .groups = "drop") %>%
   collect() %>%
-  # 3. Local Calculation & Cleaning
   group_by(YEAR) %>%
   mutate(pct_workers = workers / sum(workers) * 100) %>%
-  ungroup() %>%
-  # Catch any missing sectors and label them
-  mutate(ind_sector = replace_na(ind_sector, "21. Unclassified / Not in Labor Force"))
+  ungroup()
 
-ind_sector_data_us <- data_hist %>%
-  filter(
-    AGE >= 16,
-    EMPSTAT == 1,
-  ) %>%
-  mutate(ind_sector = case_when(
-    IND1990 >= 10 & IND1990 <= 32 ~ "01. Agriculture, Forestry, Fishing & Hunting",
-    IND1990 >= 40 & IND1990 <= 50 ~ "02. Mining, Quarrying, & Oil/Gas Extraction",
-    IND1990 >= 450 & IND1990 <= 472 ~ "03. Utilities",
-    IND1990 == 60 ~ "04. Construction",
-    IND1990 >= 100 & IND1990 <= 392 ~ "05. Manufacturing",
-    IND1990 >= 500 & IND1990 <= 571 ~ "06. Wholesale Trade",
-
-    # Excludes 641 (Eating/Drinking Places) to align with modern NAICS grouping
-    (IND1990 >= 580 & IND1990 <= 691) & IND1990 != 641 ~ "07. Retail Trade",
-    IND1990 >= 400 & IND1990 <= 432 ~ "08. Transportation & Warehousing",
-    IND1990 >= 440 & IND1990 <= 442 ~ "09. Information", # Maps 1990 Communications here
-    IND1990 >= 700 & IND1990 <= 711 ~ "10. Finance & Insurance",
-    IND1990 == 712 ~ "11. Real Estate & Rental/Leasing",
-
-    # Merges 1990 Engineering/Architecture/Accounting with related professional codes
-    IND1990 == 841 | (IND1990 >= 881 & IND1990 <= 893) ~ "12. Professional, Scientific, & Tech Services",
-    IND1990 >= 721 & IND1990 <= 741 ~ "13. Administrative, Support, & Waste Mgmt",
-    IND1990 >= 842 & IND1990 <= 860 ~ "14. Educational Services",
-    (IND1990 >= 812 & IND1990 <= 840) | (IND1990 >= 861 & IND1990 <= 873) ~ "15. Health Care & Social Assistance",
-    IND1990 >= 800 & IND1990 <= 810 ~ "16. Arts, Entertainment, & Recreation",
-
-    # Combines 1990 Eating/Drinking places (641) with Hotels/Lodging (762, 770)
-    IND1990 %in% c(641, 762, 770) ~ "17. Accommodation & Food Services",
-    IND1990 %in% c(750, 751, 752, 761, 771, 772, 781, 791) ~ "18. Other Services (Except Public Admin)",
-    IND1990 >= 900 & IND1990 <= 932 ~ "19. Public Administration",
-    IND1990 >= 940 & IND1990 <= 960 ~ "20. Military",
-    TRUE ~ "21. Unclassified / Not in Labor Force"
-  )) %>%
+# Total US Industry Data
+ind_sector_data_us <- mapped_workers_db %>%
   group_by(YEAR, ind_sector) %>%
-  summarise(
-    workers = sum(PERWT, na.rm = TRUE),
-    .groups = "drop"
-  ) %>%
-  # 2. Collect into local memory
+  summarise(workers = sum(PERWT, na.rm = TRUE), .groups = "drop") %>%
   collect() %>%
-  # 3. Local Calculation & Cleaning
   group_by(YEAR) %>%
   mutate(pct_workers = workers / sum(workers) * 100) %>%
-  ungroup() %>%
-  # Catch any missing sectors and label them
-  mutate(ind_sector = replace_na(ind_sector, "21. Unclassified / Not in Labor Force"))
+  ungroup()
 ```
 
 ### Visualize Puerto Rican workers by industry
@@ -1160,7 +1108,7 @@ ind_sector_data_us <- data_hist %>%
 ```{r PR workers by Industry, message=FALSE, warning=FALSE}
 # Using facet_wrap to clearly view trends across 20+ sectors without overlap
 ggplot(ind_sector_data, aes(x = YEAR, y = workers, color = ind_sector)) +
-  geom_line(size = 1) +
+  geom_line(linewidth = 1) +
   geom_point(size = 1.5) +
   facet_wrap(~ind_sector, ncol = 4) +
   my_theme +
@@ -1178,10 +1126,11 @@ ggplot(ind_sector_data, aes(x = YEAR, y = workers, color = ind_sector)) +
 ```
 
 ### Visualize Total workers by Industry
+
 ```{r US workers by Industry, message=FALSE, warning=FALSE}
 # Using facet_wrap to clearly view trends across 20+ sectors without overlap
 ggplot(ind_sector_data_us, aes(x = YEAR, y = workers, color = ind_sector)) +
-  geom_line(size = 1) +
+  geom_line(linewidth = 1) +
   geom_point(size = 1.5) +
   facet_wrap(~ind_sector, ncol = 4) +
   my_theme +
@@ -1262,21 +1211,30 @@ ggplot(ind_change, aes(x = first_share, y = reorder(ind_sector, first_share))) +
 ### Workforce Share by Industry 1950 to 2010
 
 ```{r Puerto Rican workforce share by industry, message=FALSE, warning=FALSE}
-ggplot(ind_sector_data, aes(x = pct_workers, y = ind_sector, fill = ind_sector)) +
+ggplot(
+  ind_sector_data %>%
+    filter(
+      !ind_sector %in% c("21. Unclassified / Not in Labor Force", "20. Military")
+    ),
+  aes(x = pct_workers, y = ind_sector, fill = ind_sector)
+) +
   # Changed from line/point to a bar chart
   geom_col(fill = "#2c3e50", alpha = 0.9) +
-
+  
   # Facet by YEAR instead of industry
-  facet_wrap(~YEAR, ncol = 3) +
+  facet_wrap( ~ YEAR, ncol = 4) +
   my_theme +
   theme(
     # Keep legend hidden since the Y-axis already labels the industries
     legend.position = "none",
     strip.text = element_text(size = 10, face = "bold")
   ) +
-
+  
   # X-axis is now the percentage since we flipped the orientation
-  scale_x_continuous(labels = function(x) paste0(x, "%")) +
+  scale_x_continuous(
+    labels = function(x)
+      paste0(x, "%")
+  ) +
   labs(
     title = "Puerto Rican Workforce Share by Industry",
     subtitle = "Percentage of total workforce across decennial years",
@@ -1343,7 +1301,7 @@ ind_index_us <- ind_sector_data_us %>%
 
 ```{r PR growth index plot, message=FALSE, warning=FALSE}
 ggplot(ind_index, aes(x = YEAR, y = index, color = ind_sector)) +
-  geom_line(size = 1) +
+  geom_line(linewidth = 1) +
   geom_point(size = 1) +
   facet_wrap(~ind_sector, ncol = 4) +
   my_theme +
@@ -1364,7 +1322,7 @@ ggplot(ind_index, aes(x = YEAR, y = index, color = ind_sector)) +
 
 ```{r Total growth index pop, message=FALSE, warning=FALSE}
 ggplot(ind_index_us, aes(x = YEAR, y = index, color = ind_sector)) +
-  geom_line(size = 1) +
+  geom_line(linewidth = 1) +
   geom_point(size = 1) +
   facet_wrap(~ind_sector, ncol = 4) +
   my_theme +
@@ -1482,103 +1440,26 @@ ggplot(representation_data_national_controlled, aes(x = YEAR, y = rep_index, col
 
 ```{r Calculate Industry by Sex, message=FALSE,warning=FALSE}
 # Calculate Puerto Rican workers by Industry and Sex
-pr_ind_sex <- data_hist %>%
-  filter(
-    HISPAN == 2 | HISPAND == 200 | ANCESTR1 == 261,
-    AGE >= 16,
-    EMPSTAT == 1,
-    SEX != 9 # Remove unknown sex
-  ) %>%
-  mutate(
-    sex_label = case_when(
-      SEX == 1 ~ "Male",
-      SEX == 2 ~ "Female"
-    ),
-    ind_sector = case_when(
-      IND1990 >= 10 & IND1990 <= 32 ~ "01. Agriculture, Forestry, Fishing & Hunting",
-      IND1990 >= 40 & IND1990 <= 50 ~ "02. Mining, Quarrying, & Oil/Gas Extraction",
-      IND1990 >= 450 & IND1990 <= 472 ~ "03. Utilities",
-      IND1990 == 60 ~ "04. Construction",
-      IND1990 >= 100 & IND1990 <= 392 ~ "05. Manufacturing",
-      IND1990 >= 500 & IND1990 <= 571 ~ "06. Wholesale Trade",
-      (IND1990 >= 580 & IND1990 <= 691) & IND1990 != 641 ~ "07. Retail Trade",
-      IND1990 >= 400 & IND1990 <= 432 ~ "08. Transportation & Warehousing",
-      IND1990 >= 440 & IND1990 <= 442 ~ "09. Information",
-      IND1990 >= 700 & IND1990 <= 711 ~ "10. Finance & Insurance",
-      IND1990 == 712 ~ "11. Real Estate & Rental/Leasing",
-      IND1990 == 841 | (IND1990 >= 881 & IND1990 <= 893) ~ "12. Professional, Scientific, & Tech Services",
-      IND1990 >= 721 & IND1990 <= 741 ~ "13. Administrative, Support, & Waste Mgmt",
-      IND1990 >= 842 & IND1990 <= 860 ~ "14. Educational Services",
-      (IND1990 >= 812 & IND1990 <= 840) | (IND1990 >= 861 & IND1990 <= 873) ~ "15. Health Care & Social Assistance",
-      IND1990 >= 800 & IND1990 <= 810 ~ "16. Arts, Entertainment, & Recreation",
-      IND1990 %in% c(641, 762, 770) ~ "17. Accommodation & Food Services",
-      IND1990 %in% c(750, 751, 752, 761, 771, 772, 781, 791) ~ "18. Other Services (Except Public Admin)",
-      IND1990 >= 900 & IND1990 <= 932 ~ "19. Public Administration",
-      IND1990 >= 940 & IND1990 <= 960 ~ "20. Military",
-      TRUE ~ "21. Unclassified / Not in Labor Force"
-    )
-  ) %>%
+pr_ind_sex <- mapped_workers_db %>%
+  filter(is_pr == TRUE, SEX != 9) %>%
+  mutate(sex_label = ifelse(SEX == 1, "Male", "Female")) %>%
   group_by(YEAR, sex_label, ind_sector) %>%
-  summarise(
-    workers = sum(PERWT, na.rm = TRUE),
-    .groups = "drop"
-  ) %>%
+  summarise(workers = sum(PERWT, na.rm = TRUE), .groups = "drop") %>%
   collect() %>%
-  # Calculate percentages within each sex group per year
   group_by(YEAR, sex_label) %>%
-  mutate(
-    pct_workers = (workers / sum(workers)) * 100
-  ) %>%
+  mutate(pct_workers = (workers / sum(workers)) * 100) %>%
   ungroup() %>%
   mutate(ind_sector = replace_na(ind_sector, "21. Unclassified / Not in Labor Force"))
 
-# Calculate Puerto Rican workers by Industry and Sex
-us_ind_sex <- data_hist %>%
-  filter(
-    AGE >= 16,
-    EMPSTAT == 1,
-    SEX != 9 # Remove unknown sex
-  ) %>%
-  mutate(
-    sex_label = case_when(
-      SEX == 1 ~ "Male",
-      SEX == 2 ~ "Female"
-    ),
-    ind_sector = case_when(
-      IND1990 >= 10 & IND1990 <= 32 ~ "01. Agriculture, Forestry, Fishing & Hunting",
-      IND1990 >= 40 & IND1990 <= 50 ~ "02. Mining, Quarrying, & Oil/Gas Extraction",
-      IND1990 >= 450 & IND1990 <= 472 ~ "03. Utilities",
-      IND1990 == 60 ~ "04. Construction",
-      IND1990 >= 100 & IND1990 <= 392 ~ "05. Manufacturing",
-      IND1990 >= 500 & IND1990 <= 571 ~ "06. Wholesale Trade",
-      (IND1990 >= 580 & IND1990 <= 691) & IND1990 != 641 ~ "07. Retail Trade",
-      IND1990 >= 400 & IND1990 <= 432 ~ "08. Transportation & Warehousing",
-      IND1990 >= 440 & IND1990 <= 442 ~ "09. Information",
-      IND1990 >= 700 & IND1990 <= 711 ~ "10. Finance & Insurance",
-      IND1990 == 712 ~ "11. Real Estate & Rental/Leasing",
-      IND1990 == 841 | (IND1990 >= 881 & IND1990 <= 893) ~ "12. Professional, Scientific, & Tech Services",
-      IND1990 >= 721 & IND1990 <= 741 ~ "13. Administrative, Support, & Waste Mgmt",
-      IND1990 >= 842 & IND1990 <= 860 ~ "14. Educational Services",
-      (IND1990 >= 812 & IND1990 <= 840) | (IND1990 >= 861 & IND1990 <= 873) ~ "15. Health Care & Social Assistance",
-      IND1990 >= 800 & IND1990 <= 810 ~ "16. Arts, Entertainment, & Recreation",
-      IND1990 %in% c(641, 762, 770) ~ "17. Accommodation & Food Services",
-      IND1990 %in% c(750, 751, 752, 761, 771, 772, 781, 791) ~ "18. Other Services (Except Public Admin)",
-      IND1990 >= 900 & IND1990 <= 932 ~ "19. Public Administration",
-      IND1990 >= 940 & IND1990 <= 960 ~ "20. Military",
-      TRUE ~ "21. Unclassified / Not in Labor Force"
-    )
-  ) %>%
+# Calculate Total US workers by Industry and Sex
+us_ind_sex <- mapped_workers_db %>%
+  filter(SEX != 9) %>%
+  mutate(sex_label = ifelse(SEX == 1, "Male", "Female")) %>%
   group_by(YEAR, sex_label, ind_sector) %>%
-  summarise(
-    workers = sum(PERWT, na.rm = TRUE),
-    .groups = "drop"
-  ) %>%
+  summarise(workers = sum(PERWT, na.rm = TRUE), .groups = "drop") %>%
   collect() %>%
-  # Calculate percentages within each sex group per year
   group_by(YEAR, sex_label) %>%
-  mutate(
-    pct_workers = (workers / sum(workers)) * 100
-  ) %>%
+  mutate(pct_workers = (workers / sum(workers)) * 100) %>%
   ungroup() %>%
   mutate(ind_sector = replace_na(ind_sector, "21. Unclassified / Not in Labor Force"))
 ```
@@ -1641,79 +1522,23 @@ ggplot(us_ind_sex, aes(x = YEAR, y = pct_workers, color = sex_label)) +
 
 ```{r Calculate Industry Income, message=FALSE,warning=FALSE}
 # Calculate average wage by industry for Puerto Rican workers
-pr_income_ind <- data_hist %>%
-  filter(
-    HISPAN == 2 | HISPAND == 200 | ANCESTR1 == 261,
-    AGE >= 16,
-    EMPSTAT == 1,
-    INCWAGE > 0, INCWAGE < 999999 # Filter out N/A and zero-income rows
-  ) %>%
-  mutate(ind_sector = case_when(
-    IND1990 >= 10 & IND1990 <= 32 ~ "01. Agriculture, Forestry, Fishing & Hunting",
-    IND1990 >= 40 & IND1990 <= 50 ~ "02. Mining, Quarrying, & Oil/Gas Extraction",
-    IND1990 >= 450 & IND1990 <= 472 ~ "03. Utilities",
-    IND1990 == 60 ~ "04. Construction",
-    IND1990 >= 100 & IND1990 <= 392 ~ "05. Manufacturing",
-    IND1990 >= 500 & IND1990 <= 571 ~ "06. Wholesale Trade",
-    (IND1990 >= 580 & IND1990 <= 691) & IND1990 != 641 ~ "07. Retail Trade",
-    IND1990 >= 400 & IND1990 <= 432 ~ "08. Transportation & Warehousing",
-    IND1990 >= 440 & IND1990 <= 442 ~ "09. Information",
-    IND1990 >= 700 & IND1990 <= 711 ~ "10. Finance & Insurance",
-    IND1990 == 712 ~ "11. Real Estate & Rental/Leasing",
-    IND1990 == 841 | (IND1990 >= 881 & IND1990 <= 893) ~ "12. Professional, Scientific, & Tech Services",
-    IND1990 >= 721 & IND1990 <= 741 ~ "13. Administrative, Support, & Waste Mgmt",
-    IND1990 >= 842 & IND1990 <= 860 ~ "14. Educational Services",
-    (IND1990 >= 812 & IND1990 <= 840) | (IND1990 >= 861 & IND1990 <= 873) ~ "15. Health Care & Social Assistance",
-    IND1990 >= 800 & IND1990 <= 810 ~ "16. Arts, Entertainment, & Recreation",
-    IND1990 %in% c(641, 762, 770) ~ "17. Accommodation & Food Services",
-    IND1990 %in% c(750, 751, 752, 761, 771, 772, 781, 791) ~ "18. Other Services (Except Public Admin)",
-    IND1990 >= 900 & IND1990 <= 932 ~ "19. Public Administration",
-    IND1990 >= 940 & IND1990 <= 960 ~ "20. Military",
-    TRUE ~ "21. Unclassified / Not in Labor Force"
-  )) %>%
+pr_income_ind <- mapped_workers_db %>%
+  filter(is_pr == TRUE, INCWAGE > 0, INCWAGE < 999999) %>%
   group_by(YEAR, ind_sector) %>%
   summarise(
     avg_wage = sum(INCWAGE * CPI99 * PERWT, na.rm = TRUE) / sum(PERWT, na.rm = TRUE),
-    # avg_wage = sum(INCWAGE * PERWT, na.rm = TRUE) / sum(PERWT, na.rm = TRUE),
     total_workers = sum(PERWT, na.rm = TRUE),
     .groups = "drop"
   ) %>%
   collect() %>%
   mutate(ind_sector = replace_na(ind_sector, "21. Unclassified / Not in Labor Force"))
 
-us_income_ind <- data_hist %>%
-  filter(
-    AGE >= 16,
-    EMPSTAT == 1,
-    INCWAGE > 0, INCWAGE < 999999 # Filter out N/A and zero-income rows
-  ) %>%
-  mutate(ind_sector = case_when(
-    IND1990 >= 10 & IND1990 <= 32 ~ "01. Agriculture, Forestry, Fishing & Hunting",
-    IND1990 >= 40 & IND1990 <= 50 ~ "02. Mining, Quarrying, & Oil/Gas Extraction",
-    IND1990 >= 450 & IND1990 <= 472 ~ "03. Utilities",
-    IND1990 == 60 ~ "04. Construction",
-    IND1990 >= 100 & IND1990 <= 392 ~ "05. Manufacturing",
-    IND1990 >= 500 & IND1990 <= 571 ~ "06. Wholesale Trade",
-    (IND1990 >= 580 & IND1990 <= 691) & IND1990 != 641 ~ "07. Retail Trade",
-    IND1990 >= 400 & IND1990 <= 432 ~ "08. Transportation & Warehousing",
-    IND1990 >= 440 & IND1990 <= 442 ~ "09. Information",
-    IND1990 >= 700 & IND1990 <= 711 ~ "10. Finance & Insurance",
-    IND1990 == 712 ~ "11. Real Estate & Rental/Leasing",
-    IND1990 == 841 | (IND1990 >= 881 & IND1990 <= 893) ~ "12. Professional, Scientific, & Tech Services",
-    IND1990 >= 721 & IND1990 <= 741 ~ "13. Administrative, Support, & Waste Mgmt",
-    IND1990 >= 842 & IND1990 <= 860 ~ "14. Educational Services",
-    (IND1990 >= 812 & IND1990 <= 840) | (IND1990 >= 861 & IND1990 <= 873) ~ "15. Health Care & Social Assistance",
-    IND1990 >= 800 & IND1990 <= 810 ~ "16. Arts, Entertainment, & Recreation",
-    IND1990 %in% c(641, 762, 770) ~ "17. Accommodation & Food Services",
-    IND1990 %in% c(750, 751, 752, 761, 771, 772, 781, 791) ~ "18. Other Services (Except Public Admin)",
-    IND1990 >= 900 & IND1990 <= 932 ~ "19. Public Administration",
-    IND1990 >= 940 & IND1990 <= 960 ~ "20. Military",
-    TRUE ~ "21. Unclassified / Not in Labor Force"
-  )) %>%
+# Calculate average wage by industry for Total Pop workers
+us_income_ind <- mapped_workers_db %>%
+  filter(INCWAGE > 0, INCWAGE < 999999) %>%
   group_by(YEAR, ind_sector) %>%
   summarise(
     us_avg_wage = sum(INCWAGE * CPI99 * PERWT, na.rm = TRUE) / sum(PERWT, na.rm = TRUE),
-    # us_avg_wage = sum(INCWAGE * PERWT, na.rm = TRUE) / sum(PERWT, na.rm = TRUE),
     total_workers = sum(PERWT, na.rm = TRUE),
     .groups = "drop"
   ) %>%
@@ -1721,7 +1546,7 @@ us_income_ind <- data_hist %>%
   mutate(ind_sector = replace_na(ind_sector, "21. Unclassified / Not in Labor Force"))
 ```
 
-### Visualize Income trajectory 
+### Visualize Income trajectory
 
 ```{r PR Income Trajectory by industry, message=FALSE, warning=FALSE}
 ggplot(pr_income_ind, aes(x = YEAR, y = avg_wage, color = ind_sector)) +
@@ -1738,7 +1563,7 @@ ggplot(pr_income_ind, aes(x = YEAR, y = avg_wage, color = ind_sector)) +
   scale_x_continuous(breaks = seq(1950, 2020, by = 10)) +
   labs(
     title = "Average Annual Wage for Puerto Rican Workers by Industry",
-    subtitle = "Nominal Dollars.",
+    subtitle = "Real 1999 Dollars",
     x = "Year",
     y = "Average Wage ($)"
   )
@@ -1807,13 +1632,17 @@ wage_gap_ind <- pr_income_ind %>%
 ```
 
 ```{r Wage gap vizualization, message=FALSE,warning=FALSE}
+
+wage_gap_ind <- wage_gap_ind %>% 
+  mutate(ind_sector = str_wrap(ind_sector, width = 35))
+
 ggplot(wage_gap_ind, aes(x = YEAR, y = wage_ratio, color = ind_sector)) +
-  geom_line(linewidth = 1) +
-  geom_point(size = 1.5) +
+  geom_line(color = "#2c3e50", linewidth = 1) + 
+  geom_point(color = "#2c3e50", size = 1.5) +
   facet_wrap(~ind_sector, ncol = 4) +
 
   # The Parity Baseline: 1.0 = Equal Pay
-  geom_hline(yintercept = 1.0, linetype = "dashed", color = "black", linewidth = 0.8) +
+  geom_hline(yintercept = 1.0, linetype = "dashed", color = "red", linewidth = 0.8) +
   my_theme +
   theme(
     legend.position = "none",
@@ -1835,18 +1664,22 @@ ggplot(wage_gap_ind, aes(x = YEAR, y = wage_ratio, color = ind_sector)) +
 ### Wage tier data prep
 
 ```{r Wage Tier Calculation, message = FALSE, warning = FALSE}
-# 1. Create the Wage Tiers based on the National Economy
+# 1. Create WEIGHTED Wage Tiers based on the National Economy
 industry_tiers <- us_income_ind %>%
   group_by(YEAR) %>%
   mutate(
-    # ntile(3) splits the industries into bottom, middle, and top thirds based on wage
-    tier_num = ntile(us_avg_wage, 3),
+    # Divide the WORKFORCE into thirds, not just the industries
+    tier_num = as.numeric(cut(
+      us_avg_wage, 
+      breaks = Hmisc::wtd.quantile(us_avg_wage, weights = total_workers, 
+                                   probs = c(0, 1/3, 2/3, 1.0)), 
+      include.lowest = TRUE
+    )),
     wage_tier = case_when(
       tier_num == 3 ~ "High-Paying Industries",
       tier_num == 2 ~ "Middle-Paying Industries",
       tier_num == 1 ~ "Low-Paying Industries"
     ),
-    # Let's make it a factor so it plots in a logical order
     wage_tier = factor(wage_tier, levels = c(
       "High-Paying Industries",
       "Middle-Paying Industries",
@@ -1922,100 +1755,6 @@ wage_tier_pct_pr_wrk <- industry_tiers %>%
   )
 ```
 
-```{r}
-# 1. Aggregate the industry percentages into the three wage tiers
-pr_tier_summary <- wage_tier_pct_pr_wrk %>%
-  group_by(YEAR, wage_tier) %>%
-  summarise(
-    total_tier_pct = sum(pr_pct, na.rm = TRUE),
-    .groups = "drop"
-  )
-
-# 2. Plot the stacked area chart
-ggplot(pr_tier_summary, aes(x = YEAR, y = total_tier_pct, fill = wage_tier)) +
-  # geom_area automatically stacks the values; color = "white" adds clean borders
-  geom_area(alpha = 0.85, color = "white", linewidth = 0.4) +
-
-  # Optional: Define specific colors for Low, Middle, High tiers
-  scale_fill_manual(values = c(
-    "High-Paying Industries" = "#1b9e77",
-    "Middle-Paying Industries" = "#d95f02",
-    "Low-Paying Industries" = "#7570b3"
-  )) +
-  my_theme +
-  theme(
-    legend.position = "bottom",
-    legend.title = element_blank()
-  ) +
-  scale_y_continuous(labels = function(x) paste0(x, "%")) +
-  scale_x_continuous(breaks = seq(1950, 2020, by = 10)) +
-  labs(
-    title = "Puerto Rican Workforce Distribution by Wage Tier",
-    subtitle = "Percentage of workers in High, Middle, and Low paying industries",
-    x = "Year",
-    y = "Share of Workforce (%)"
-  )
-```
-
-```{r}
-ggplot(pr_tier_summary, aes(x = YEAR, y = total_tier_pct, color = wage_tier)) +
-  geom_line(linewidth = 1.2) +
-  geom_point(size = 2.5) +
-  scale_color_manual(values = c(
-    "High-Paying Industries" = "#1b9e77",
-    "Middle-Paying Industries" = "#d95f02",
-    "Low-Paying Industries" = "#7570b3"
-  )) +
-  my_theme +
-  theme(
-    legend.position = "bottom",
-    legend.title = element_blank()
-  ) +
-  scale_y_continuous(labels = function(x) paste0(x, "%")) +
-  scale_x_continuous(breaks = seq(1950, 2020, by = 10)) +
-  labs(
-    title = "Puerto Rican Workforce Trajectory by Wage Tier",
-    subtitle = "Tracking the share of workers in each tier over time",
-    x = "Year",
-    y = "Share of Workforce (%)"
-  )
-```
-
-### Change in Puerto Rican Worker Share and Wage Tier
-
-```{r}
-ggplot(wage_tier_pct_pr_wrk, aes(x = YEAR, y = pr_pct)) +
-  # 1. Draw a continuous neutral line to show the trend in workforce share
-  geom_line(color = "black", linewidth = 0.75) +
-
-  # 2. Add large points colored by the wage tier for that specific decade
-  geom_point(aes(color = wage_tier), size = 2) +
-
-  # 3. Facet by industry so each has its own panel
-  facet_wrap(~ind_sector, ncol = 4) +
-
-  # 4. Apply a distinct color palette for the tiers
-  scale_color_manual(values = c(
-    "High-Paying Industries" = "#1b9e77", # Green
-    "Middle-Paying Industries" = "#d95f02", # Orange
-    "Low-Paying Industries" = "#7570b3" # Purple
-  )) +
-  my_theme +
-  theme(
-    legend.position = "bottom",
-    legend.title = element_blank(),
-    strip.text = element_text(size = 8, face = "bold")
-  ) +
-  scale_y_continuous(labels = function(x) paste0(x, "%")) +
-  scale_x_continuous(breaks = seq(1950, 2020, by = 10)) +
-  labs(
-    title = "Puerto Rican Workforce Share and Industry Wage Tiers",
-    subtitle = "Tracking industry participation. Dot colors indicate the national wage tier for that decade.",
-    x = "Year",
-    y = "Share of Puerto Rican Workforce (%)"
-  )
-```
-
 ```{r Puerto Rican workforce share by industry by wage tier, message=, warning=FALSE}
 wage_tier_pct_pr_wrk %>%
   filter(ind_sector != "21. Unclassified / Not in Labor Force") %>%
@@ -2054,145 +1793,23 @@ wage_tier_pct_pr_wrk %>%
 ### Initial data prep
 
 ```{r Occupation data prep, message=FALSE,warning=FALSE}
-occ_cat_data <- data_hist %>%
-  filter(HISPAN == 2 |
-           HISPAND == 200 | ANCESTR1 == 261, AGE >= 16, EMPSTAT == 1) %>%
-  # 1. SERVER SIDE: Create the text labels using case_when
-  mutate(
-    occ_cat1 = case_when(
-      (OCC2010 >= 10 &
-         OCC2010 <= 960) |
-        (OCC2010 >= 2600 &
-           OCC2010 <= 2960) ~ "Management, Business, Entertainment & Media",
-      OCC2010 >= 1000 & OCC2010 <= 1965 ~ "STEM",
-      (OCC2010 >= 2000 &
-         OCC2010 <= 2550) |
-        (OCC2010 >= 4300 &
-           OCC2010 <= 4650) ~ "Education, Community & Social Services",
-      OCC2010 >= 3000 & OCC2010 <= 3655 ~ "Health & Medical",
-      (OCC2010 >= 3700 &
-         OCC2010 <= 3955) |
-        (OCC2010 >= 9000 &
-           OCC2010 <= 9420) ~ "Law Enforcement & Transportation",
-      OCC2010 >= 4000 &
-        OCC2010 <= 4250 ~ "Food, Maintenance, Building & Grounds Cleaning",
-      OCC2010 >= 4700 & OCC2010 <= 4965 ~ "Sales and Related",
-      OCC2010 >= 5000 &
-        OCC2010 <= 5940 ~ "Administrative and Office Support",
-      OCC2010 >= 6005 &
-        OCC2010 <= 7630 ~ "Natural Resources, Construction & Maintenance",
-      (OCC2010 >= 7700 &
-         OCC2010 <= 8965) |
-        (OCC2010 >= 9500 &
-           OCC2010 <= 9750) ~ "Production and Material Moving",
-      OCC2010 >= 9800 & OCC2010 <= 9830 ~ "Military",
-      OCC2010 %in% c(9920, 9999) ~ "Unclassified",
-      TRUE ~ "Unclassified"
-    )
-  ) %>%
+occ_cat_data <- mapped_workers_db %>%
+  filter(is_pr == TRUE) %>%
   group_by(YEAR, occ_cat1) %>%
   summarise(workers = sum(PERWT, na.rm = TRUE), .groups = "drop") %>%
-  # 2. BRING TO LOCAL MEMORY
   collect() %>%
-  
-  # 3. LOCAL R SIDE: Now it is safe to use R-specific functions
-  mutate(
-    # Catch any NAs before factoring
-    occ_cat1 = replace_na(occ_cat1, "Unclassified"),
-    
-    # Convert to factor to lock in your custom plotting order
-    occ_cat1 = factor(
-      occ_cat1,
-      levels = c(
-        "Management, Business, Entertainment & Media",
-        "STEM",
-        "Education, Community & Social Services",
-        "Health & Medical",
-        "Law Enforcement & Transportation",
-        "Food, Maintenance, Building & Grounds Cleaning",
-        "Sales and Related",
-        "Administrative and Office Support",
-        "Natural Resources, Construction & Maintenance",
-        "Production and Material Moving",
-        "Military",
-        "Unclassified"
-      )
-    )
-  ) %>%
-  # 4. Finish your calculations
   group_by(YEAR) %>%
   mutate(pct_workers = workers / sum(workers) * 100) %>%
   ungroup()
 
-occ_cat_data_us <- data_hist %>%
-  filter(AGE >= 16, EMPSTAT == 1) %>%
-  mutate(
-    occ_cat1 = case_when(
-      (OCC2010 >= 10 &
-         OCC2010 <= 960) |
-        (OCC2010 >= 2600 &
-           OCC2010 <= 2960) ~ "Management, Business, Entertainment & Media",
-      OCC2010 >= 1000 & OCC2010 <= 1965 ~ "STEM",
-      (OCC2010 >= 2000 &
-         OCC2010 <= 2550) |
-        (OCC2010 >= 4300 &
-           OCC2010 <= 4650) ~ "Education, Community & Social Services",
-      OCC2010 >= 3000 & OCC2010 <= 3655 ~ "Health & Medical",
-      (OCC2010 >= 3700 &
-         OCC2010 <= 3955) |
-        (OCC2010 >= 9000 &
-           OCC2010 <= 9420) ~ "Law Enforcement & Transportation",
-      OCC2010 >= 4000 &
-        OCC2010 <= 4250 ~ "Food, Maintenance, Building & Grounds Cleaning",
-      OCC2010 >= 4700 & OCC2010 <= 4965 ~ "Sales and Related",
-      OCC2010 >= 5000 &
-        OCC2010 <= 5940 ~ "Administrative and Office Support",
-      OCC2010 >= 6005 &
-        OCC2010 <= 7630 ~ "Natural Resources, Construction & Maintenance",
-      (OCC2010 >= 7700 &
-         OCC2010 <= 8965) |
-        (OCC2010 >= 9500 &
-           OCC2010 <= 9750) ~ "Production and Material Moving",
-      OCC2010 >= 9800 & OCC2010 <= 9830 ~ "Military",
-      OCC2010 %in% c(9920, 9999) ~ "Unclassified",
-      TRUE ~ "Unclassified"
-    )
-  ) %>%
+occ_cat_data_us <- mapped_workers_db %>%
   group_by(YEAR, occ_cat1) %>%
   summarise(workers = sum(PERWT, na.rm = TRUE), .groups = "drop") %>%
-  # 2. BRING TO LOCAL MEMORY
   collect() %>%
-  
-  # 3. LOCAL R SIDE: Now it is safe to use R-specific functions
-  mutate(
-    # Catch any NAs before factoring
-    occ_cat1 = replace_na(occ_cat1, "Unclassified"),
-    
-    # Convert to factor to lock in your custom plotting order
-    occ_cat1 = factor(
-      occ_cat1,
-      levels = c(
-        "Management, Business, Entertainment & Media",
-        "STEM",
-        "Education, Community & Social Services",
-        "Health & Medical",
-        "Law Enforcement & Transportation",
-        "Food, Maintenance, Building & Grounds Cleaning",
-        "Sales and Related",
-        "Administrative and Office Support",
-        "Natural Resources, Construction & Maintenance",
-        "Production and Material Moving",
-        "Military",
-        "Unclassified"
-      )
-    )
-  ) %>%
-  # 4. Finish your calculations
   group_by(YEAR) %>%
   mutate(pct_workers = workers / sum(workers) * 100) %>%
   ungroup()
 ```
-
 
 ### Visualize Puerto Rican workers by occupation
 
@@ -2212,7 +1829,6 @@ ggplot(occ_cat_data, aes(x = YEAR, y = workers, color = occ_cat1)) +
   ) +
   scale_x_continuous(breaks = seq(1950, 2020, by = 10))
 ```
-
 
 ### Visualize Total workers by occupation
 
@@ -2421,7 +2037,6 @@ ggplot(occ_index_us, aes(x = YEAR, y = index, color = occ_cat1)) +
   scale_x_continuous(breaks = seq(1950, 2020, by = 10))
 ```
 
-
 ### Over / Under Representation Index
 
 ```{r Over/under data prep, message=FALSE, warning=FALSE}
@@ -2474,7 +2089,6 @@ occ_rep_data_national_controlled <- occ_cat_data %>%
   filter(occ_cat1 != "Unclassified", occ_cat1 != "11. Military")
 ```
 
-
 ### Visualize Over / under adjusted
 
 ```{r Visualize Over/under adjusted, message=FALSE,warning=FALSE}
@@ -2504,147 +2118,45 @@ ggplot(
   )
 ```
 
-
 ## Occupation Analysis by Sex
 
 ### Calculate Occupation metrics by Sex
 
 ```{r Occupation by sex data prep, message=FALSE,warning=FALSE}
-pr_occ_sex <- data_hist %>%
-  filter(HISPAN == 2 | HISPAND == 200 | ANCESTR1 == 261,
-         AGE >= 16,
-         EMPSTAT == 1,
-         SEX != 9) %>%
-  # 1. SERVER SIDE: Create the text labels using case_when
-  mutate(
-    sex_label = case_when(SEX == 1 ~ "Male", SEX == 2 ~ "Female"),
-    occ_cat1 = case_when(
-      (OCC2010 >= 10 &
-         OCC2010 <= 960) |
-        (OCC2010 >= 2600 &
-           OCC2010 <= 2960) ~ "Management, Business, Entertainment & Media",
-      OCC2010 >= 1000 & OCC2010 <= 1965 ~ "STEM",
-      (OCC2010 >= 2000 &
-         OCC2010 <= 2550) |
-        (OCC2010 >= 4300 &
-           OCC2010 <= 4650) ~ "Education, Community & Social Services",
-      OCC2010 >= 3000 & OCC2010 <= 3655 ~ "Health & Medical",
-      (OCC2010 >= 3700 &
-         OCC2010 <= 3955) |
-        (OCC2010 >= 9000 &
-           OCC2010 <= 9420) ~ "Law Enforcement & Transportation",
-      OCC2010 >= 4000 &
-        OCC2010 <= 4250 ~ "Food, Maintenance, Building & Grounds Cleaning",
-      OCC2010 >= 4700 & OCC2010 <= 4965 ~ "Sales and Related",
-      OCC2010 >= 5000 &
-        OCC2010 <= 5940 ~ "Administrative and Office Support",
-      OCC2010 >= 6005 &
-        OCC2010 <= 7630 ~ "Natural Resources, Construction & Maintenance",
-      (OCC2010 >= 7700 &
-         OCC2010 <= 8965) |
-        (OCC2010 >= 9500 &
-           OCC2010 <= 9750) ~ "Production and Material Moving",
-      OCC2010 >= 9800 & OCC2010 <= 9830 ~ "Military",
-      OCC2010 %in% c(9920, 9999) ~ "Unclassified",
-      TRUE ~ "Unclassified"
-    )
-  ) %>%
+# Define occupational factor levels to ensure consistent plot ordering
+occ_levels <- c(
+  "Management, Business, Entertainment & Media", "STEM", 
+  "Education, Community & Social Services", "Health & Medical", 
+  "Law Enforcement & Transportation", "Food, Maintenance, Building & Grounds Cleaning", 
+  "Sales and Related", "Administrative and Office Support", 
+  "Natural Resources, Construction & Maintenance", "Production and Material Moving", 
+  "Military", "Unclassified"
+)
+
+pr_occ_sex <- mapped_workers_db %>%
+  filter(is_pr == TRUE, SEX != 9) %>%
+  mutate(sex_label = ifelse(SEX == 1, "Male", "Female")) %>%
   group_by(YEAR, sex_label, occ_cat1) %>%
   summarise(workers = sum(PERWT, na.rm = TRUE), .groups = "drop") %>%
-  # 2. BRING TO LOCAL MEMORY
   collect() %>%
-  # 3. LOCAL R SIDE: Apply R-specific functions
   mutate(
-    # Catch any missing sectors first
     occ_cat1 = replace_na(occ_cat1, "Unclassified"),
-    # Convert to factor to lock in your plotting order
-    occ_cat1 = factor(
-      occ_cat1,
-      levels = c(
-        "Management, Business, Entertainment & Media",
-        "STEM",
-        "Education, Community & Social Services",
-        "Health & Medical",
-        "Law Enforcement & Transportation",
-        "Food, Maintenance, Building & Grounds Cleaning",
-        "Sales and Related",
-        "Administrative and Office Support",
-        "Natural Resources, Construction & Maintenance",
-        "Production and Material Moving",
-        "Military",
-        "Unclassified"
-      )
-    )
+    occ_cat1 = factor(occ_cat1, levels = occ_levels)
   ) %>%
-  # 4. Finish calculations
   group_by(YEAR, sex_label) %>%
   mutate(pct_workers = (workers / sum(workers)) * 100) %>%
   ungroup()
 
-us_occ_sex <- data_hist %>%
-  filter(AGE >= 16, EMPSTAT == 1, SEX != 9) %>%
-  # 1. SERVER SIDE: Create the text labels using case_when
-  mutate(
-    sex_label = case_when(SEX == 1 ~ "Male", SEX == 2 ~ "Female"),
-    occ_cat1 = case_when(
-      (OCC2010 >= 10 &
-         OCC2010 <= 960) |
-        (OCC2010 >= 2600 &
-           OCC2010 <= 2960) ~ "Management, Business, Entertainment & Media",
-      OCC2010 >= 1000 & OCC2010 <= 1965 ~ "STEM",
-      (OCC2010 >= 2000 &
-         OCC2010 <= 2550) |
-        (OCC2010 >= 4300 &
-           OCC2010 <= 4650) ~ "Education, Community & Social Services",
-      OCC2010 >= 3000 & OCC2010 <= 3655 ~ "Health & Medical",
-      (OCC2010 >= 3700 &
-         OCC2010 <= 3955) |
-        (OCC2010 >= 9000 &
-           OCC2010 <= 9420) ~ "Law Enforcement & Transportation",
-      OCC2010 >= 4000 &
-        OCC2010 <= 4250 ~ "Food, Maintenance, Building & Grounds Cleaning",
-      OCC2010 >= 4700 & OCC2010 <= 4965 ~ "Sales and Related",
-      OCC2010 >= 5000 &
-        OCC2010 <= 5940 ~ "Administrative and Office Support",
-      OCC2010 >= 6005 &
-        OCC2010 <= 7630 ~ "Natural Resources, Construction & Maintenance",
-      (OCC2010 >= 7700 &
-         OCC2010 <= 8965) |
-        (OCC2010 >= 9500 &
-           OCC2010 <= 9750) ~ "Production and Material Moving",
-      OCC2010 >= 9800 & OCC2010 <= 9830 ~ "Military",
-      OCC2010 %in% c(9920, 9999) ~ "Unclassified",
-      TRUE ~ "Unclassified"
-    )
-  ) %>%
+us_occ_sex <- mapped_workers_db %>%
+  filter(SEX != 9) %>%
+  mutate(sex_label = ifelse(SEX == 1, "Male", "Female")) %>%
   group_by(YEAR, sex_label, occ_cat1) %>%
   summarise(workers = sum(PERWT, na.rm = TRUE), .groups = "drop") %>%
-  # 2. BRING TO LOCAL MEMORY
   collect() %>%
-  # 3. LOCAL R SIDE: Apply R-specific functions
   mutate(
-    # Catch any missing sectors first
     occ_cat1 = replace_na(occ_cat1, "Unclassified"),
-    # Convert to factor to lock in your plotting order
-    occ_cat1 = factor(
-      occ_cat1,
-      levels = c(
-        "Management, Business, Entertainment & Media",
-        "STEM",
-        "Education, Community & Social Services",
-        "Health & Medical",
-        "Law Enforcement & Transportation",
-        "Food, Maintenance, Building & Grounds Cleaning",
-        "Sales and Related",
-        "Administrative and Office Support",
-        "Natural Resources, Construction & Maintenance",
-        "Production and Material Moving",
-        "Military",
-        "Unclassified"
-      )
-    )
+    occ_cat1 = factor(occ_cat1, levels = occ_levels)
   ) %>%
-  # 4. Finish calculations
   group_by(YEAR, sex_label) %>%
   mutate(pct_workers = (workers / sum(workers)) * 100) %>%
   ungroup()
@@ -2711,140 +2223,32 @@ ggplot(us_occ_sex, aes(x = YEAR, y = pct_workers, color = sex_label)) +
 ### Calculate Occupation Income
 
 ```{r}
-pr_income_occ <- data_hist %>%
-  filter(
-    HISPAN == 2 | HISPAND == 200 | ANCESTR1 == 261,
-    AGE >= 16,
-    EMPSTAT == 1,
-    INCWAGE > 0,
-    INCWAGE < 999999
-  ) %>%
-  # 1. SERVER SIDE: Create the text labels using case_when
-  mutate(
-    occ_cat1 = case_when(
-      (OCC2010 >= 10 &
-         OCC2010 <= 960) |
-        (OCC2010 >= 2600 &
-           OCC2010 <= 2960) ~ "Management, Business, Entertainment & Media",
-      OCC2010 >= 1000 & OCC2010 <= 1965 ~ "STEM",
-      (OCC2010 >= 2000 &
-         OCC2010 <= 2550) |
-        (OCC2010 >= 4300 &
-           OCC2010 <= 4650) ~ "Education, Community & Social Services",
-      OCC2010 >= 3000 & OCC2010 <= 3655 ~ "Health & Medical",
-      (OCC2010 >= 3700 &
-         OCC2010 <= 3955) |
-        (OCC2010 >= 9000 &
-           OCC2010 <= 9420) ~ "Law Enforcement & Transportation",
-      OCC2010 >= 4000 &
-        OCC2010 <= 4250 ~ "Food, Maintenance, Building & Grounds Cleaning",
-      OCC2010 >= 4700 & OCC2010 <= 4965 ~ "Sales and Related",
-      OCC2010 >= 5000 &
-        OCC2010 <= 5940 ~ "Administrative and Office Support",
-      OCC2010 >= 6005 &
-        OCC2010 <= 7630 ~ "Natural Resources, Construction & Maintenance",
-      (OCC2010 >= 7700 &
-         OCC2010 <= 8965) |
-        (OCC2010 >= 9500 &
-           OCC2010 <= 9750) ~ "Production and Material Moving",
-      OCC2010 >= 9800 & OCC2010 <= 9830 ~ "Military",
-      OCC2010 %in% c(9920, 9999) ~ "Unclassified",
-      TRUE ~ "Unclassified"
-    )
-  ) %>%
+pr_income_occ <- mapped_workers_db %>%
+  filter(is_pr == TRUE, INCWAGE > 0, INCWAGE < 999999) %>%
   group_by(YEAR, occ_cat1) %>%
   summarise(
     avg_wage = sum(INCWAGE * CPI99 * PERWT, na.rm = TRUE) / sum(PERWT, na.rm = TRUE),
     total_workers = sum(PERWT, na.rm = TRUE),
     .groups = "drop"
   ) %>%
-  # 2. BRING TO LOCAL MEMORY
   collect() %>%
-  # 3. LOCAL R SIDE: Replace NAs and convert to Factor
   mutate(
     occ_cat1 = replace_na(occ_cat1, "Unclassified"),
-    occ_cat1 = factor(
-      occ_cat1,
-      levels = c(
-        "Management, Business, Entertainment & Media",
-        "STEM",
-        "Education, Community & Social Services",
-        "Health & Medical",
-        "Law Enforcement & Transportation",
-        "Food, Maintenance, Building & Grounds Cleaning",
-        "Sales and Related",
-        "Administrative and Office Support",
-        "Natural Resources, Construction & Maintenance",
-        "Production and Material Moving",
-        "Military",
-        "Unclassified"
-      )
-    )
+    occ_cat1 = factor(occ_cat1, levels = occ_levels) # Requires occ_levels defined in chunk above
   )
 
-us_income_occ <- data_hist %>%
-  filter(AGE >= 16, EMPSTAT == 1, INCWAGE > 0, INCWAGE < 999999) %>%
-  # 1. SERVER SIDE: Create the text labels using case_when
-  mutate(
-    occ_cat1 = case_when(
-      (OCC2010 >= 10 &
-         OCC2010 <= 960) |
-        (OCC2010 >= 2600 &
-           OCC2010 <= 2960) ~ "Management, Business, Entertainment & Media",
-      OCC2010 >= 1000 & OCC2010 <= 1965 ~ "STEM",
-      (OCC2010 >= 2000 &
-         OCC2010 <= 2550) |
-        (OCC2010 >= 4300 &
-           OCC2010 <= 4650) ~ "Education, Community & Social Services",
-      OCC2010 >= 3000 & OCC2010 <= 3655 ~ "Health & Medical",
-      (OCC2010 >= 3700 &
-         OCC2010 <= 3955) |
-        (OCC2010 >= 9000 &
-           OCC2010 <= 9420) ~ "Law Enforcement & Transportation",
-      OCC2010 >= 4000 &
-        OCC2010 <= 4250 ~ "Food, Maintenance, Building & Grounds Cleaning",
-      OCC2010 >= 4700 & OCC2010 <= 4965 ~ "Sales and Related",
-      OCC2010 >= 5000 &
-        OCC2010 <= 5940 ~ "Administrative and Office Support",
-      OCC2010 >= 6005 &
-        OCC2010 <= 7630 ~ "Natural Resources, Construction & Maintenance",
-      (OCC2010 >= 7700 &
-         OCC2010 <= 8965) |
-        (OCC2010 >= 9500 &
-           OCC2010 <= 9750) ~ "Production and Material Moving",
-      OCC2010 >= 9800 & OCC2010 <= 9830 ~ "Military",
-      OCC2010 %in% c(9920, 9999) ~ "Unclassified",
-      TRUE ~ "Unclassified"
-    )
-  ) %>%
+us_income_occ <- mapped_workers_db %>%
+  filter(INCWAGE > 0, INCWAGE < 999999) %>%
   group_by(YEAR, occ_cat1) %>%
   summarise(
     us_avg_wage = sum(INCWAGE * CPI99 * PERWT, na.rm = TRUE) / sum(PERWT, na.rm = TRUE),
     total_workers = sum(PERWT, na.rm = TRUE),
     .groups = "drop"
   ) %>%
-  # 2. BRING TO LOCAL MEMORY
   collect() %>%
-  # 3. LOCAL R SIDE: Replace NAs and convert to Factor
   mutate(
     occ_cat1 = replace_na(occ_cat1, "Unclassified"),
-    occ_cat1 = factor(
-      occ_cat1,
-      levels = c(
-        "Management, Business, Entertainment & Media",
-        "STEM",
-        "Education, Community & Social Services",
-        "Health & Medical",
-        "Law Enforcement & Transportation",
-        "Food, Maintenance, Building & Grounds Cleaning",
-        "Sales and Related",
-        "Administrative and Office Support",
-        "Natural Resources, Construction & Maintenance",
-        "Production and Material Moving",
-        "Military",
-        "Unclassified"
-      )
-    )
+    occ_cat1 = factor(occ_cat1, levels = occ_levels)
   )
 ```
 
@@ -2864,7 +2268,7 @@ ggplot(pr_income_occ, aes(x = YEAR, y = avg_wage, color = occ_cat1)) +
   scale_x_continuous(breaks = seq(1950, 2020, by = 10)) +
   labs(
     title = "Average Annual Wage for Puerto Rican Workers by Occupation",
-    subtitle = "Nominal Dollars.",
+    subtitle = "Real 1999 Dollars",
     x = "Year",
     y = "Average Wage ($)"
   )
@@ -2905,7 +2309,6 @@ ggplot(us_income_2024, aes(x = us_avg_wage, y = reorder(occ_cat1, us_avg_wage)))
     y = NULL
   )
 ```
-
 
 ### Calculate wage gap by occupation for Puerto Ricans
 
@@ -3119,6 +2522,7 @@ ggplot(
     y = "Share of Workforce (%)"
   )
 ```
+
 ### Change in Puerto Rican Worker Share and Wage Tier
 
 ```{r}
@@ -3153,7 +2557,7 @@ ggplot(wage_tier_pct_pr_occ, aes(x = YEAR, y = pr_pct)) +
   )
 ```
 
-```{r}
+```{r }
 wage_tier_pct_pr_occ %>%
   filter(occ_cat1 != "Unclassified") %>%
   ggplot(aes(x = pr_pct, y = occ_cat1, fill = wage_tier)) +
@@ -3186,5 +2590,316 @@ wage_tier_pct_pr_occ %>%
   )
 ```
 
-## AI Exposed Occupations
+## AI Exposed Occupations Analysis
 
+### Map industry codes and AI vulnerable Occupations
+
+```{r Mapping Industry and Occupaiton Categories, message=FALSE,warning=FALSE}
+mapped_workers_db <- data_hist %>%
+  # Apply base employment filter, correcting the missing GQ != 3
+  filter(AGE >= 16, EMPSTAT == 1, GQ != 3) %>%
+  mutate(
+    # Create a boolean flag for PR status to split the data later
+    is_pr = case_when(
+      HISPAN == 2 | HISPAND == 200 | ANCESTR1 == 261 ~ TRUE,
+      TRUE ~ FALSE
+    ),
+    
+    # Map Industries
+    ind_sector = case_when(
+    IND1990 >= 10 & IND1990 <= 32 ~ "01. Agriculture, Forestry, Fishing & Hunting",
+    IND1990 >= 40 & IND1990 <= 50 ~ "02. Mining, Quarrying, & Oil/Gas Extraction",
+    IND1990 >= 450 & IND1990 <= 472 ~ "03. Utilities",
+    IND1990 == 60 ~ "04. Construction",
+    IND1990 >= 100 & IND1990 <= 392 ~ "05. Manufacturing",
+    IND1990 >= 500 & IND1990 <= 571 ~ "06. Wholesale Trade",
+
+    # Excludes 641 (Eating/Drinking Places) to align with modern NAICS grouping
+    (IND1990 >= 580 & IND1990 <= 691) & IND1990 != 641 ~ "07. Retail Trade",
+    IND1990 >= 400 & IND1990 <= 432 ~ "08. Transportation & Warehousing",
+    IND1990 >= 440 & IND1990 <= 442 ~ "09. Information", # Maps 1990 Communications here
+    IND1990 >= 700 & IND1990 <= 711 ~ "10. Finance & Insurance",
+    IND1990 == 712 ~ "11. Real Estate & Rental/Leasing",
+
+    # Merges 1990 Engineering/Architecture/Accounting with related professional codes
+    IND1990 == 841 | (IND1990 >= 881 & IND1990 <= 893) ~ "12. Professional, Scientific, & Tech Services",
+    IND1990 >= 721 & IND1990 <= 741 ~ "13. Administrative, Support, & Waste Mgmt",
+    IND1990 >= 842 & IND1990 <= 860 ~ "14. Educational Services",
+    (IND1990 >= 812 & IND1990 <= 840) | (IND1990 >= 861 & IND1990 <= 873) ~ "15. Health Care & Social Assistance",
+    IND1990 >= 800 & IND1990 <= 810 ~ "16. Arts, Entertainment, & Recreation",
+
+    # Combines 1990 Eating/Drinking places (641) with Hotels/Lodging (762, 770)
+    IND1990 %in% c(641, 762, 770) ~ "17. Accommodation & Food Services",
+    IND1990 %in% c(750, 751, 752, 761, 771, 772, 781, 791) ~ "18. Other Services (Except Public Admin)",
+    IND1990 >= 900 & IND1990 <= 932 ~ "19. Public Administration",
+    IND1990 >= 940 & IND1990 <= 960 ~ "20. Military",
+      TRUE ~ "21. Unclassified / Not in Labor Force"
+    ),
+    
+    # Map Occupations
+    # Map Occupations
+    occ_cat1 = case_when(
+      (OCC2010 >= 10 &
+         OCC2010 <= 960) |
+        (OCC2010 >= 2600 &
+           OCC2010 <= 2960) ~ "Management, Business, Entertainment & Media",
+      OCC2010 >= 1000 & OCC2010 <= 1965 ~ "STEM",
+      (OCC2010 >= 2000 &
+         OCC2010 <= 2550) |
+        (OCC2010 >= 4300 &
+           OCC2010 <= 4650) ~ "Education, Community & Social Services",
+      OCC2010 >= 3000 & OCC2010 <= 3655 ~ "Health & Medical",
+      (OCC2010 >= 3700 &
+         OCC2010 <= 3955) |
+        (OCC2010 >= 9000 &
+           OCC2010 <= 9420) ~ "Law Enforcement & Transportation",
+      OCC2010 >= 4000 &
+        OCC2010 <= 4250 ~ "Food, Maintenance, Building & Grounds Cleaning",
+      OCC2010 >= 4700 & OCC2010 <= 4965 ~ "Sales and Related",
+      OCC2010 >= 5000 &
+        OCC2010 <= 5940 ~ "Administrative and Office Support",
+      OCC2010 >= 6005 &
+        OCC2010 <= 7630 ~ "Natural Resources, Construction & Maintenance",
+      (OCC2010 >= 7700 &
+         OCC2010 <= 8965) |
+        (OCC2010 >= 9500 &
+           OCC2010 <= 9750) ~ "Production and Material Moving",
+      OCC2010 >= 9800 & OCC2010 <= 9830 ~ "Military",
+      OCC2010 %in% c(9920, 9999) ~ "Unclassified",
+      TRUE ~ "Unclassified"
+    ),
+    # Map AI vulnerable occupaitons 
+    ai_vuln = case_when(
+  OCC2010 %in% c(10, 20, 110, 120, 800, 1010, 1020, 3255, 4850, 5240, 5400, 5700, 7340) ~ "AI Vulnerable",
+  OCC2010 %in% c(9920, 9999) ~ "Unclassified",
+  TRUE ~ "Not AI Vulnerable"
+  )
+)
+```
+
+### Exposure over time (1950 to 2024)
+
+```{r Calculate and visualize exposure, message=FALSE, warning=FALSE}
+
+ai_exposure_data <- mapped_workers_db %>%
+  filter(ai_vuln != "Unclassified") %>%
+  group_by(YEAR, is_pr, ai_vuln) %>%
+  summarise(workers = sum(PERWT, na.rm = TRUE), .groups = "drop") %>%
+  collect() %>%
+  group_by(YEAR, is_pr) %>%
+  mutate(
+    pct_workers = (workers / sum(workers)) * 100,
+    demographic = ifelse(is_pr, "Puerto Rican Workers", "Total US Workers")
+  ) %>%
+  ungroup()
+
+ggplot(ai_exposure_data %>% filter(ai_vuln == "AI Vulnerable"), 
+       aes(x = YEAR, y = pct_workers, color = demographic)) +
+  geom_line(linewidth = 1.2) +
+  geom_point(size = 2.5) +
+  my_theme +
+  scale_color_manual(values = c("Puerto Rican Workers" = "#d95f02", "Total US Workers" = "#7570b3")) +
+  scale_y_continuous(labels = function(x) paste0(x, "%")) +
+  labs(
+    title = "Workforce Exposure to AI Technologies (1950-2024)",
+    subtitle = "Percentage of workers employed in AI-vulnerable occupations",
+    x = "Year",
+    y = "Share of Workforce (%)"
+  ) +
+  scale_x_continuous(breaks = seq(1950, 2020, by = 10))
+```
+
+### Wage Premium or Penalty for AI vulnerable occupations
+
+```{r Wage preiums calculation and visualization, message=FALSE, warning=FALSE}
+ai_wage_data <- mapped_workers_db %>%
+  filter(ai_vuln != "Unclassified", INCWAGE > 0, INCWAGE < 999999) %>%
+  group_by(YEAR, is_pr, ai_vuln) %>%
+  summarise(
+    avg_wage = sum(INCWAGE * CPI99 * PERWT, na.rm = TRUE) / sum(PERWT, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  collect() %>%
+  mutate(demographic = ifelse(is_pr, "Puerto Rican Workers", "Total US Workers"))
+
+ggplot(ai_wage_data, aes(x = YEAR, y = avg_wage, color = demographic, linetype = ai_vuln)) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 2.5) +
+  my_theme +
+  scale_color_manual(values = c("Puerto Rican Workers" = "#d95f02", "Total US Workers" = "#7570b3")) +
+  scale_y_continuous(labels = scales::dollar_format()) +
+  labs(
+    title = "Historical Wage Trajectories by AI Vulnerability",
+    subtitle = "Real 1999 Dollars",
+    x = "Year",
+    y = "Average Annual Wage ($)"
+  ) +
+  scale_x_continuous(breaks = seq(1950, 2020, by = 10))
+```
+
+### Demographic variations in AI vulnerable occupations
+
+```{r Demographic difference calculation and visualization, message=FALSE, warning=FALSE}
+ai_demographics <- mapped_workers_db %>%
+  filter(is_pr == TRUE, ai_vuln != "Unclassified", SEX != 9) %>%
+  mutate(sex_label = ifelse(SEX == 1, "Male", "Female")) %>%
+  group_by(YEAR, sex_label, ai_vuln) %>%
+  summarise(workers = sum(PERWT, na.rm = TRUE), .groups = "drop") %>%
+  collect() %>%
+  group_by(YEAR, sex_label) %>%
+  mutate(pct_workers = (workers / sum(workers)) * 100) %>%
+  ungroup()
+
+ggplot(ai_demographics %>% filter(ai_vuln == "AI Vulnerable"), 
+       aes(x = YEAR, y = pct_workers, color = sex_label)) +
+  geom_line(linewidth = 1.2) +
+  geom_point(size = 2.5) +
+  my_theme +
+  scale_color_manual(values = c("Male" = "#1f78b4", "Female" = "#e31a1c")) +
+  scale_y_continuous(labels = function(x) paste0(x, "%")) +
+  labs(
+    title = "Puerto Rican AI Vulnerability by Sex",
+    subtitle = "Percentage of each sex's workforce in AI-vulnerable occupations",
+    x = "Year",
+    y = "Exposure Rate (%)"
+  )
+```
+
+# Poverty Rate for Puerto Ricans
+
+## Calculate Poverty Rate
+
+```{r Calculate poverty rate, message=FALSE, warning=FALSE}
+
+# Calculate poverty estimates for Puerto Ricans and Total US Pop
+pr_poverty_50_24 <- calculate_poverty_rate(data_hist, pr_filter = TRUE)
+us_poverty_50_24 <- calculate_poverty_rate(data_hist, pr_filter = FALSE)
+```
+
+## Visualize poverty rate over time
+
+```{r Visualize poverty rate, message=FALSE,warning=FALSE}
+p <- ggplot() +
+  geom_line(
+    data = pr_poverty_50_24,
+    aes(x = YEAR, y = poverty_rate, color = "Puerto Rican"),
+    linewidth = 1.5
+  ) +
+  geom_point(
+    data = pr_poverty_50_24,
+    aes(x = YEAR, y = poverty_rate, color = "Puerto Rican"),
+    size = 2
+  ) +
+  geom_line(
+    data = us_poverty_50_24,
+    aes(x = YEAR, y = poverty_rate, color = "Total US"),
+    linewidth = 1.5
+  ) +
+  geom_point(
+    data = us_poverty_50_24,
+    aes(x = YEAR, y = poverty_rate, color = "Total US"),
+    size = 2
+  ) +
+  my_theme +
+  # Using the established project color palette for consistency[cite: 2]
+  scale_color_manual(values = c("Puerto Rican" = "#d95f02", "Total US" = "#7570b3")) +
+  labs(
+    title = "Historical Poverty Rate", 
+    subtitle = "Comparing Puerto Ricans to the total US population (1950-2024)",
+    x = NULL, 
+    y = "Poverty Rate (%)"
+  ) +
+  scale_x_continuous(breaks = seq(1950, 2024, by = 10))
+
+ggsave(
+  filename = "pr_poverty_presentation.png", 
+  plot = p, 
+  width = 10,           # Width in inches (standard for 16:9 slides)
+  height = 5.625,       # Height in inches (10 / (16/9) = 5.625)
+  dpi = 300,            # 300 DPI ensures it won't look pixelated on a projector
+  bg = "white"          # Ensures the background is solid white, not transparent
+)
+```
+
+# Puerto Rican Workers Concentration by Regions
+
+```{r}
+# Map regions using IPUMS STATEFIP codes and calculate LFPR
+data_hist_regions <- data_hist %>%
+  mutate(
+    region = case_when(
+      STATEFIP %in% c(9, 23, 25, 33, 44, 50) ~ "New England",
+      STATEFIP %in% c(10, 11, 24, 34, 36, 42) ~ "Mideast",
+      STATEFIP %in% c(17, 18, 26, 39, 55) ~ "Great Lakes",
+      STATEFIP %in% c(19, 20, 27, 29, 31, 38, 46) ~ "Plains",
+      STATEFIP %in% c(1, 5, 12, 13, 21, 22, 28, 37, 45, 47, 51, 54) ~ "Southeast",
+      STATEFIP %in% c(4, 35, 40, 48) ~ "Southwest",
+      STATEFIP %in% c(8, 16, 30, 49, 56) ~ "Rocky Mountain",
+      STATEFIP %in% c(2, 6, 15, 32, 41, 53) ~ "Far West",
+      TRUE ~ "Other/PR"
+    )
+  ) %>%
+  filter(region != "Other/PR")
+
+# 1. Estimate Puerto Rican population in the labor force by region
+pr_labfor_region <- calculate_lfpr(
+  data_hist_regions, 
+  pr_filter = TRUE, 
+  grp_vars = "region"
+)
+```
+
+## Industry Share by Region
+
+```{r}
+# Map regions onto the mapped_workers_db
+mapped_workers_regions <- mapped_workers_db %>%
+  mutate(
+    region = case_when(
+      STATEFIP %in% c(9, 23, 25, 33, 44, 50) ~ "New England",
+      STATEFIP %in% c(10, 11, 24, 34, 36, 42) ~ "Mideast",
+      STATEFIP %in% c(17, 18, 26, 39, 55) ~ "Great Lakes",
+      STATEFIP %in% c(19, 20, 27, 29, 31, 38, 46) ~ "Plains",
+      STATEFIP %in% c(1, 5, 12, 13, 21, 22, 28, 37, 45, 47, 51, 54) ~ "Southeast",
+      STATEFIP %in% c(4, 35, 40, 48) ~ "Southwest",
+      STATEFIP %in% c(8, 16, 30, 49, 56) ~ "Rocky Mountain",
+      STATEFIP %in% c(2, 6, 15, 32, 41, 53) ~ "Far West",
+      TRUE ~ "Other/PR"
+    )
+  ) %>%
+  filter(region != "Other/PR")
+
+# 2. Calculate Puerto Rican Industry Share by Region
+pr_ind_share_region <- mapped_workers_regions %>%
+  # Filter for Puerto Ricans and remove Unclassified/Military
+  filter(
+    is_pr == TRUE,
+    !(ind_sector %in% c("21. Unclassified / Not in Labor Force", "20. Military"))
+  ) %>%
+  group_by(YEAR, region, ind_sector) %>%
+  summarise(workers = sum(PERWT, na.rm = TRUE), .groups = "drop") %>%
+  collect() %>%
+  # Group by Year and Region to calculate the percentage share within that specific region
+  group_by(YEAR, region) %>%
+  mutate(pct_workers = (workers / sum(workers)) * 100) %>%
+  ungroup()
+```
+
+## Occupation Share by region
+
+```{r}
+# 3. Calculate Puerto Rican AI Vulnerable Share by Region
+pr_ai_vuln_region <- mapped_workers_regions %>%
+  # Filter for Puerto Ricans and valid AI vulnerability mappings
+  filter(
+    is_pr == TRUE, 
+    ai_vuln != "Unclassified"
+  ) %>%
+  group_by(YEAR, region, ai_vuln) %>%
+  summarise(workers = sum(PERWT, na.rm = TRUE), .groups = "drop") %>%
+  collect() %>%
+  # Group by Year and Region to calculate the regional percentage
+  group_by(YEAR, region) %>%
+  mutate(pct_workers = (workers / sum(workers)) * 100) %>%
+  ungroup()
+```
