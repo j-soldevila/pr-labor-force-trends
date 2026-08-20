@@ -23,7 +23,7 @@ source("00_project_setup.R")
 # We use the function in 00_project_setup to calculate the total Puerto Rican population in the labor force. 
 
 # Puerto Ricans in the US
-pr_lf_rate_us <- calculate_age_adjusted_lfpr(data_acs, HISPAN == 2 | HISPAND == 200
+pr_lf_rate_us <- calculate_age_adjusted_lfpr(data_hist, HISPAN == 2 | HISPAND == 200
                                              | ANCESTR1 == 261)
 ```
 

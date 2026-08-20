@@ -15,7 +15,7 @@ con <- dbConnect(
 )
 
 # 2. Read and upload the data
-mini_data <- read_csv("usa_00127.csv")
+mini_data <- read_csv("data/usa_00128.csv")
 
 dbWriteTable(
   con,
@@ -50,7 +50,9 @@ dbExecute(con, 'CREATE INDEX temp_match_idx ON temp_data ("YEAR", "SAMPLE", "SER
 #           ')
 
 dbExecute(con,'
-          ALTER TABLE data_acs_decennial
+          ALTER TABLE data_acs
+          ADD COLUMN "INCWAGE" INTEGER,
+          ADD COLUMN "IND1990" INTEGER,
           ADD COLUMN "CPI99" INTEGER;
           ')
 
@@ -97,8 +99,10 @@ dbExecute(con,'
 # dbExecute(con, update_query)
 
 update_query <- '
-  UPDATE data_acs_decennial AS main
+  UPDATE data_acs AS main
   SET
+  "INCWAGE" = temp."INCWAGE",
+  "IND1990" = temp."IND1990",
   "CPI99" = temp."CPI99"
   FROM temp_data AS temp
   WHERE main."YEAR" = temp."YEAR"

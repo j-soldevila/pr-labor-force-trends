@@ -2,7 +2,8 @@
 
 # 1. Load Libraries
 if (!require("pacman")) install.packages("pacman")
-pacman::p_load(tidyverse, DBI, RPostgres, scales, ipumsr,readxl,usmap,gghighlight,styler)
+pacman::p_load(tidyverse, DBI, RPostgres, scales, ipumsr,readxl,usmap,
+               gghighlight,styler,Hmisc)
 
 # 2. Database Connection
 con <- dbConnect(
@@ -36,11 +37,26 @@ important_years_lines <- geom_vline(
 )
 
 # 4. Reusable Function for LFPR Calculation
-# Uses ifelse() instead of subsetting [ ] to ensure perfect translation to SQL
-calculate_lfpr <- function(db_tbl, ...) {
-  db_tbl %>%
-    filter(..., AGE >= 16, EMPSTAT != 0, !(EMPSTATD %in% 13:15), GQ != 3) %>%
-    group_by(YEAR) %>%
+calculate_lfpr <- function(db_tbl, pr_filter = FALSE, grp_vars = NULL) {
+  
+  # Base filtering (includes GQ != 3 to remove institutionalized pop)
+  q <- db_tbl %>%
+    filter(AGE >= 16, EMPSTAT != 0, !(EMPSTATD %in% 13:15), GQ != 3)
+  
+  # Toggle PR filter
+  if (pr_filter) {
+    q <- q %>% filter(HISPAN == 2 | HISPAND == 200 | ANCESTR1 == 261)
+  }
+  
+  # Apply dynamic grouping if demographic variables are provided
+  if (!is.null(grp_vars)) {
+    q <- q %>% group_by(across(all_of(c("YEAR", grp_vars))))
+  } else {
+    q <- q %>% group_by(YEAR)
+  }
+  
+  # Calculate metrics
+  q %>%
     summarise(
       total_pop = sum(ifelse(EMPSTAT %in% c(1, 2, 3), PERWT, 0), na.rm = TRUE),
       in_labfor = sum(ifelse(EMPSTAT %in% c(1, 2), PERWT, 0), na.rm = TRUE),
@@ -48,13 +64,13 @@ calculate_lfpr <- function(db_tbl, ...) {
       unemp = sum(ifelse(EMPSTAT == 2, PERWT, 0), na.rm = TRUE),
       .groups = "drop"
     ) %>%
+    collect() %>%
     mutate(
       labfor_rate = (in_labfor / total_pop) * 100,
       out_labfor_pct = (out_labfor / total_pop) * 100,
       unemp_rate = (unemp / in_labfor) * 100,
-      etop_ratio = (in_labfor-unemp)/total_pop * 100
-    ) %>%
-    collect()
+      etop_ratio = (in_labfor - unemp) / total_pop * 100
+    ) 
 }
 
 # Define age standard weights (You will need to compute these based on your total data_acs pool)
@@ -104,4 +120,37 @@ calculate_age_adjusted_lfpr <- function(db_tbl, ...) {
       adjusted_etop = sum(age_specific_etop * std_weight) * 100,
       .groups = "drop"
     )
+}
+
+# Custom Reusable Function for Poverty Calculation
+calculate_poverty_rate <- function(db_tbl, pr_filter = FALSE, grp_vars = NULL) {
+  
+  # Base filtering: Remove 0, which represents N/A or institutionalized pop not in the poverty universe in IPUMS
+  q <- db_tbl %>%
+    filter(POVERTY != 0)
+  
+  # Toggle PR filter[cite: 1]
+  if (pr_filter) {
+    q <- q %>% filter(HISPAN == 2 | HISPAND == 200 | ANCESTR1 == 261)
+  }
+  
+  # Apply dynamic grouping if demographic variables are provided[cite: 1]
+  if (!is.null(grp_vars)) {
+    q <- q %>% group_by(across(all_of(c("YEAR", grp_vars))))
+  } else {
+    q <- q %>% group_by(YEAR)
+  }
+  
+  # Calculate metrics using person weight (PERWT)[cite: 1]
+  q %>%
+    summarise(
+      total_pop_poverty_universe = sum(PERWT, na.rm = TRUE),
+      # In IPUMS, POVERTY < 100 means the person's family income is below the poverty threshold
+      in_poverty = sum(ifelse(POVERTY < 100, PERWT, 0), na.rm = TRUE),
+      .groups = "drop"
+    ) %>%
+    mutate(
+      poverty_rate = (in_poverty / total_pop_poverty_universe) * 100
+    ) %>%
+    collect()
 }
