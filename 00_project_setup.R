@@ -22,11 +22,14 @@ data_hist <- tbl(con, "data_acs_decennial")
 
 # 3. Custom Plotting Theme
 my_theme <- theme_bw() +
-  theme(
-    plot.title = element_text(face = "bold", size = 14),
-    plot.subtitle = element_text(color = "grey30", size = 11),
-    legend.position = "bottom",
-    legend.title = element_blank()
+  theme(plot.title = element_text(size = 18, face = "bold"),
+        plot.subtitle = element_text(size = 14, color = "grey30"),
+        legend.position = "bottom",
+        legend.title = element_blank(),
+        axis.text = element_text(size = 12),
+        axis.title = element_text(size = 14),
+        legend.text = element_text(size = 14),
+        plot.caption = element_text(size = 10, color = "grey50", hjust = 1)
   )
 
 # Common vertical lines for important years

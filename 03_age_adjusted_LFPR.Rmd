@@ -375,3 +375,72 @@ ggplot() +
     y = "Estimate"
   )
 ```
+
+## Adding Some stuff here
+
+```{r Age adjusted calculation}
+pr_lf_rate_us <- calculate_age_adjusted_lfpr(data_acs, HISPAN == 2 |
+  HISPAND == 200 |
+  ANCESTR1 == 261)
+lf_rate_us <- calculate_age_adjusted_lfpr(data_acs)
+```
+
+### Visualize Age Adjusted labor force participation rate
+
+```{r Age adjusted LFPR visualization}
+p <- ggplot() +
+  geom_line(
+    data = pr_lf_rate_us,
+    aes(x = YEAR, y = adjusted_lfpr, color = "Puerto Rican"),
+    linewidth = 1.5
+  ) +
+  geom_point(
+    data = pr_lf_rate_us,
+    aes(x = YEAR, y = adjusted_lfpr, color = "Puerto Rican"),
+    size = 3 
+  )  +
+  geom_line(
+    data = lf_rate_us,
+    aes(x = YEAR, y = adjusted_lfpr, color = "Total US"),
+    linewidth = 1.5
+  ) +
+  geom_point(
+    data = lf_rate_us,
+    aes(x = YEAR, y = adjusted_lfpr, color = "Total US"),
+    size = 3
+  ) +
+  my_theme +
+  # Expanded labels for clarity
+  scale_color_manual(values = c("Puerto Rican" = "#d95f02", "Total US" = "#7570b3")) +
+  # Appends a % sign to the y-axis values
+  scale_y_continuous(labels = function(x) paste0(x, "%")) +
+  scale_x_continuous(breaks = seq(2000, 2024, by = 5)) +
+  labs(
+    title = "Age-Adjusted Labor Force Participation Rates and Unemployment Rate",
+    subtitle = "Comparing Puerto Rican workers to the total US population (2001-2024)",
+    x = NULL, # 'Year' is obvious, so we remove the label to save space
+    y = "Participation Rate",
+    caption = "Source: IPUMS USA, ACS (2001-2024)"
+  ) +
+  # Overriding my_theme defaults to make text presentation-sized
+  theme(
+    plot.title = element_text(size = 18, face = "bold"),
+    plot.subtitle = element_text(size = 14, color = "grey30"),
+    axis.text = element_text(size = 12),
+    axis.title = element_text(size = 14),
+    legend.text = element_text(size = 14),
+    plot.caption = element_text(size = 10, color = "grey50", hjust = 1)
+  ) +
+  important_years_lines 
+
+print(p)
+
+# ggsave(
+#   filename = "figures/age_adj_pr_lfpr_presentation.png",
+#   plot = p,
+#   width = 10, # Width in inches (standard for 16:9 slides)
+#   height = 5.625, # Height in inches (10 / (16/9) = 5.625)
+#   dpi = 300, # 300 DPI ensures it won't look pixelated on a projector
+#   bg = "white" # Ensures the background is solid white, not transparent
+# )
+```

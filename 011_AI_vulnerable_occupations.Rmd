@@ -30,72 +30,84 @@ mapped_workers_db <- data_acs %>%
       TRUE ~ FALSE
     ),
     
-    # Map Industries
+# Map Industries
     ind_sector = case_when(
-    IND1990 >= 10 & IND1990 <= 32 ~ "01. Agriculture, Forestry, Fishing & Hunting",
-    IND1990 >= 40 & IND1990 <= 50 ~ "02. Mining, Quarrying, & Oil/Gas Extraction",
-    IND1990 >= 450 & IND1990 <= 472 ~ "03. Utilities",
-    IND1990 == 60 ~ "04. Construction",
-    IND1990 >= 100 & IND1990 <= 392 ~ "05. Manufacturing",
-    IND1990 >= 500 & IND1990 <= 571 ~ "06. Wholesale Trade",
-
-    # Excludes 641 (Eating/Drinking Places) to align with modern NAICS grouping
-    (IND1990 >= 580 & IND1990 <= 691) & IND1990 != 641 ~ "07. Retail Trade",
-    IND1990 >= 400 & IND1990 <= 432 ~ "08. Transportation & Warehousing",
-    IND1990 >= 440 & IND1990 <= 442 ~ "09. Information", # Maps 1990 Communications here
-    IND1990 >= 700 & IND1990 <= 711 ~ "10. Finance & Insurance",
-    IND1990 == 712 ~ "11. Real Estate & Rental/Leasing",
-
-    # Merges 1990 Engineering/Architecture/Accounting with related professional codes
-    IND1990 == 841 | (IND1990 >= 881 & IND1990 <= 893) ~ "12. Professional, Scientific, & Tech Services",
-    IND1990 >= 721 & IND1990 <= 741 ~ "13. Administrative, Support, & Waste Mgmt",
-    IND1990 >= 842 & IND1990 <= 860 ~ "14. Educational Services",
-    (IND1990 >= 812 & IND1990 <= 840) | (IND1990 >= 861 & IND1990 <= 873) ~ "15. Health Care & Social Assistance",
-    IND1990 >= 800 & IND1990 <= 810 ~ "16. Arts, Entertainment, & Recreation",
-
-    # Combines 1990 Eating/Drinking places (641) with Hotels/Lodging (762, 770)
-    IND1990 %in% c(641, 762, 770) ~ "17. Accommodation & Food Services",
-    IND1990 %in% c(750, 751, 752, 761, 771, 772, 781, 791) ~ "18. Other Services (Except Public Admin)",
-    IND1990 >= 900 & IND1990 <= 932 ~ "19. Public Administration",
-    IND1990 >= 940 & IND1990 <= 960 ~ "20. Military",
-      TRUE ~ "21. Unclassified / Not in Labor Force"
+      IND1990 >= 10 & IND1990 <= 32 ~ "Ag, Forestry, Fish & Hunt",
+      IND1990 >= 40 & IND1990 <= 50 ~ "Mining, Quarry, Oil/Gas",
+      IND1990 >= 450 & IND1990 <= 472 ~ "Utilities",
+      IND1990 == 60 ~ "Construction",
+      IND1990 >= 100 & IND1990 <= 392 ~ "Manufacturing",
+      IND1990 >= 500 & IND1990 <= 571 ~ "Wholesale Trade",
+      
+      # Excludes 641 (Eating/Drinking Places) to align with modern NAICS grouping
+      (IND1990 >= 580 &
+         IND1990 <= 691) & IND1990 != 641 ~ "Retail Trade",
+      IND1990 >= 400 &
+        IND1990 <= 432 ~ "Transport & Warehousing",
+      IND1990 >= 440 &
+        IND1990 <= 442 ~ "Information",
+      # Maps 1990 Communications here
+      IND1990 >= 700 & IND1990 <= 711 ~ "Finance & Insurance",
+      IND1990 == 712 ~ "Real Estate & Leasing",
+      
+      # Merges 1990 Engineering/Architecture/Accounting with related professional codes
+      IND1990 == 841 |
+        (IND1990 >= 881 & IND1990 <= 893) ~ "Prof, Sci, & Tech Svcs",
+      IND1990 >= 721 &
+        IND1990 <= 741 ~ "Admin, Support, & Waste Mgmt",
+      IND1990 >= 842 & IND1990 <= 860 ~ "Educational Svcs",
+      (IND1990 >= 812 &
+         IND1990 <= 840) |
+        (IND1990 >= 861 & IND1990 <= 873) ~ "Health & Social Asst",
+      IND1990 >= 800 &
+        IND1990 <= 810 ~ "Arts, Entertain, & Rec",
+      
+      # Combines 1990 Eating/Drinking places (641) with Hotels/Lodging (762, 770)
+      IND1990 %in% c(641, 762, 770) ~ "Accom & Food Svcs",
+      IND1990 %in% c(750, 751, 752, 761, 771, 772, 781, 791) ~ "Other Svcs (excl. Pub Admin)",
+      IND1990 >= 900 & IND1990 <= 932 ~ "Public Admin",
+      IND1990 >= 940 & IND1990 <= 960 ~ "Military",
+      TRUE ~ "Unclassified / NILF"
     ),
     
-    # Map Occupations
     # Map Occupations
     occ_cat1 = case_when(
       (OCC2010 >= 10 &
          OCC2010 <= 960) |
         (OCC2010 >= 2600 &
-           OCC2010 <= 2960) ~ "Management, Business, Entertainment & Media",
+           OCC2010 <= 2960) ~ "Mgmt, Bus, Entertain & Media",
       OCC2010 >= 1000 & OCC2010 <= 1965 ~ "STEM",
       (OCC2010 >= 2000 &
          OCC2010 <= 2550) |
         (OCC2010 >= 4300 &
-           OCC2010 <= 4650) ~ "Education, Community & Social Services",
+           OCC2010 <= 4650) ~ "Educ, Comm & Social Svcs",
       OCC2010 >= 3000 & OCC2010 <= 3655 ~ "Health & Medical",
       (OCC2010 >= 3700 &
          OCC2010 <= 3955) |
         (OCC2010 >= 9000 &
-           OCC2010 <= 9420) ~ "Law Enforcement & Transportation",
+           OCC2010 <= 9420) ~ "Law Enf & Transport",
       OCC2010 >= 4000 &
-        OCC2010 <= 4250 ~ "Food, Maintenance, Building & Grounds Cleaning",
-      OCC2010 >= 4700 & OCC2010 <= 4965 ~ "Sales and Related",
+        OCC2010 <= 4250 ~ "Food, Maint, Bldg & Grounds",
+      OCC2010 >= 4700 & OCC2010 <= 4965 ~ "Sales & Related",
       OCC2010 >= 5000 &
-        OCC2010 <= 5940 ~ "Administrative and Office Support",
+        OCC2010 <= 5940 ~ "Admin & Office Support",
       OCC2010 >= 6005 &
-        OCC2010 <= 7630 ~ "Natural Resources, Construction & Maintenance",
+        OCC2010 <= 7630 ~ "Nat Res, Const & Maint",
       (OCC2010 >= 7700 &
          OCC2010 <= 8965) |
         (OCC2010 >= 9500 &
-           OCC2010 <= 9750) ~ "Production and Material Moving",
+           OCC2010 <= 9750) ~ "Prod & Material Moving",
       OCC2010 >= 9800 & OCC2010 <= 9830 ~ "Military",
       OCC2010 %in% c(9920, 9999) ~ "Unclassified",
       TRUE ~ "Unclassified"
     ),
     # Map AI vulnerable occupaitons 
     ai_vuln = case_when(
-  OCC2010 %in% c(10, 20, 110, 120, 800, 1010, 1020, 3255, 4850, 5240, 5400, 5700, 7340) ~ "AI Vulnerable",
+  OCC2010 %in% c(10, 20, 110, 120, 150, 160, 630, 430, 540, 565, 650, 700, 735, 
+                 740, 800, 910, 1005, 1006, 1007, 1010, 1020, 1050, 1105, 1106, 
+                 1400, 1430, 1460, 1530, 1965, 2825, 3255, 3510,3655, 4830, 4850, 
+                 4940, 5100, 5110, 5120, 5160, 5240, 5400, 5520, 5600, 5700, 
+                 5840,5860, 7340) ~ "AI Vulnerable",
   OCC2010 %in% c(9920, 9999) ~ "Unclassified",
   TRUE ~ "Not AI Vulnerable"
   )
@@ -148,6 +160,7 @@ top_10_pr_occ_labeled <- top_10_pr_occ_by_year %>%
 
 print(top_10_pr_occ_labeled)
 ```
+
 ### Visualize Top 10 occupations by year
 
 ```{r Plot top 10 occupations in timeseries, message=FALSE,warning=FALSE}
@@ -193,7 +206,6 @@ ggplot(top_10_pr_occ_labeled, aes(
     color = "AI Vulnerability Risk"
   )
 ```
-
 
 ```{r Top 10 occupations for PR visualization, message=FALSE, warning=FALSE}
 ggplot(top_10_pr_occ_labeled, aes(
@@ -375,6 +387,7 @@ ggplot(top_10_pr_occ_sex_labeled %>% filter(sex_label == "Female"), aes(
     color = "AI Vulnerability Risk"
   )
 ```
+
 ### Continous visualization of Male and Female Top 10 Occupations
 
 ```{r Continuos top 10 occupations PR Males, message=FALSE, warning=FALSE}
@@ -426,7 +439,6 @@ ggplot(continuous_male_trends, aes(
     color = "AI Vulnerability Risk"
   )
 ```
-
 
 ```{r Continuos top 10 occupations PR Males, message=FALSE, warning=FALSE}
 # 1. Identify which occupations ever made the Top 10 for females
@@ -483,53 +495,81 @@ ggplot(continuous_female_trends, aes(
   )
 ```
 
-### Exposure over time (2001 to 2024)
+# Exposure over time (2001 to 2024)
 
 ```{r Calculate and visualize exposure, message=FALSE, warning=FALSE}
 
-ai_exposure_data <- mapped_workers_db %>%
-  filter(ai_vuln != "Unclassified") %>%
-  group_by(YEAR, is_pr, ai_vuln) %>%
+ai_exposure_pr <- mapped_workers_db %>%
+  filter(is_pr == TRUE, ai_vuln != "Unclassified") %>%
+  group_by(YEAR, ai_vuln) %>%
   summarise(workers = sum(PERWT, na.rm = TRUE), .groups = "drop") %>%
   collect() %>%
-  group_by(YEAR, is_pr) %>%
-  mutate(
-    pct_workers = (workers / sum(workers)) * 100,
-    demographic = ifelse(is_pr, "Puerto Rican Workers", "Total US Workers")
-  ) %>%
+  group_by(YEAR) %>%
+  mutate(pct_workers = (workers / sum(workers)) * 100, demographic = "Puerto Rican Workers") %>%
   ungroup()
+
+ai_exposure_us <- mapped_workers_db %>%
+  filter(ai_vuln != "Unclassified") %>%
+  group_by(YEAR, ai_vuln) %>%
+  summarise(workers = sum(PERWT, na.rm = TRUE), .groups = "drop") %>%
+  collect() %>%
+  group_by(YEAR) %>%
+  mutate(pct_workers = (workers / sum(workers)) * 100, demographic = "Total US Workers") %>%
+  ungroup()
+
+ai_exposure_data <- bind_rows(ai_exposure_pr, ai_exposure_us)
 ```
 
 ```{r }
-ggplot(ai_exposure_data %>% filter(ai_vuln == "AI Vulnerable"), 
+p <- ggplot(ai_exposure_data %>% filter(ai_vuln == "AI Vulnerable"), 
        aes(x = YEAR, y = pct_workers, color = demographic)) +
-  geom_line(linewidth = 1.2) +
-  geom_point(size = 2.5) +
+  geom_line(linewidth = 1.5) +  # Increased for screen visibility
+  geom_point(size = 3) +        # Increased for screen visibility
   my_theme +
   scale_color_manual(values = c("Puerto Rican Workers" = "#d95f02", "Total US Workers" = "#7570b3")) +
   scale_y_continuous(labels = function(x) paste0(x, "%")) +
+  scale_x_continuous(breaks = seq(2001, 2024, by = 5)) +
   labs(
-    title = "Workforce Exposure to AI Technologies (2001-2024)",
-    subtitle = "Percentage of workers employed in AI-vulnerable occupations",
-    x = "Year",
-    y = "Share of Workforce (%)"
-  ) +
-  scale_x_continuous(breaks = seq(2001, 2024, by = 5))
+    title = "Workforce Exposure to AI Technologies", 
+    subtitle = "Percentage of workers employed in AI-vulnerable occupations (2001-2024)", 
+    x = NULL, 
+    y = "Share of Workforce", 
+    caption = "Source: IPUMS USA, ACS (2001-2024)" # Added source citation
+  )
+
+print(p)
+
+ggsave(
+  filename = "figures/ai_exposure_presentation.png",
+  plot = p,
+  width = 10, # Width in inches (standard for 16:9 slides)
+  height = 5.625, # Height in inches (10 / (16/9) = 5.625)
+  dpi = 300, # 300 DPI ensures it won't look pixelated on a projector
+  bg = "white" # Ensures the background is solid white, not transparent
+)
 ```
 
 ### Wage Premium or Penalty for AI vulnerable occupations
 
 ```{r Wage preiums calculation and visualization, message=FALSE, warning=FALSE}
-ai_wage_data <- mapped_workers_db %>%
-  filter(ai_vuln != "Unclassified", INCWAGE > 0, INCWAGE < 999999) %>%
-  group_by(YEAR, is_pr, ai_vuln) %>%
-  summarise(
-    avg_wage = sum(INCWAGE * CPI99 * PERWT, na.rm = TRUE) / sum(PERWT, na.rm = TRUE),
-    .groups = "drop"
-  ) %>%
+ai_wage_pr <- mapped_workers_db %>%
+  filter(is_pr == TRUE, ai_vuln != "Unclassified", INCWAGE > 0, INCWAGE < 999999) %>%
+  group_by(YEAR, ai_vuln) %>%
+  summarise(avg_wage = sum(INCWAGE * CPI99 * PERWT, na.rm = TRUE) / sum(PERWT, na.rm = TRUE), .groups = "drop") %>%
   collect() %>%
-  mutate(demographic = ifelse(is_pr, "Puerto Rican Workers", "Total US Workers"))
+  mutate(demographic = "Puerto Rican Workers")
 
+ai_wage_us <- mapped_workers_db %>%
+  filter(ai_vuln != "Unclassified", INCWAGE > 0, INCWAGE < 999999) %>%
+  group_by(YEAR, ai_vuln) %>%
+  summarise(avg_wage = sum(INCWAGE * CPI99 * PERWT, na.rm = TRUE) / sum(PERWT, na.rm = TRUE), .groups = "drop") %>%
+  collect() %>%
+  mutate(demographic = "Total US Workers")
+
+ai_wage_data <- bind_rows(ai_wage_pr, ai_wage_us)
+```
+
+```{r}
 ggplot(ai_wage_data, aes(x = YEAR, y = avg_wage, color = demographic, linetype = ai_vuln)) +
   geom_line(linewidth = 1) +
   geom_point(size = 2.5) +
@@ -548,33 +588,21 @@ ggplot(ai_wage_data, aes(x = YEAR, y = avg_wage, color = demographic, linetype =
 ### Demographic variations in AI vulnerable occupations
 
 ```{r Demographic difference calculation and visualization, message=FALSE, warning=FALSE}
-ai_demographics <- mapped_workers_db %>%
+# Puerto Rican Data
+ai_demographics_pr <- mapped_workers_db %>%
   filter(is_pr == TRUE, ai_vuln != "Unclassified", SEX != 9) %>%
   mutate(sex_label = ifelse(SEX == 1, "Male", "Female")) %>%
   group_by(YEAR, sex_label, ai_vuln) %>%
   summarise(workers = sum(PERWT, na.rm = TRUE), .groups = "drop") %>%
   collect() %>%
   group_by(YEAR, sex_label) %>%
-  mutate(pct_workers = (workers / sum(workers)) * 100) %>%
+  mutate(
+    pct_workers = (workers / sum(workers)) * 100,
+    demographic = "Puerto Rican Workers" # Added identifier
+  ) %>%
   ungroup()
 
-ggplot(ai_demographics %>% filter(ai_vuln == "AI Vulnerable"), 
-       aes(x = YEAR, y = pct_workers, color = sex_label)) +
-  geom_line(linewidth = 1.2) +
-  geom_point(size = 2.5) +
-  my_theme +
-  scale_color_manual(values = c("Male" = "#1f78b4", "Female" = "#e31a1c")) +
-  scale_y_continuous(labels = function(x) paste0(x, "%")) +
-  labs(
-    title = "Puerto Rican AI Vulnerability by Sex",
-    subtitle = "Percentage of each sex's workforce in AI-vulnerable occupations",
-    x = "Year",
-    y = "Exposure Rate (%)"
-  )
-```
-
-### Demographic variations in AI vulnerable occupations for total population
-```{r}
+# Total US Data
 ai_demographics_us <- mapped_workers_db %>%
   filter(ai_vuln != "Unclassified", SEX != 9) %>%
   mutate(sex_label = ifelse(SEX == 1, "Male", "Female")) %>%
@@ -582,44 +610,97 @@ ai_demographics_us <- mapped_workers_db %>%
   summarise(workers = sum(PERWT, na.rm = TRUE), .groups = "drop") %>%
   collect() %>%
   group_by(YEAR, sex_label) %>%
-  mutate(pct_workers = (workers / sum(workers)) * 100) %>%
+  mutate(
+    pct_workers = (workers / sum(workers)) * 100,
+    demographic = "Total US Workers" # Added identifier
+  ) %>%
   ungroup()
 
-ggplot(ai_demographics %>% filter(ai_vuln == "AI Vulnerable"), 
-       aes(x = YEAR, y = pct_workers, color = sex_label)) +
-  geom_line(linewidth = 1.2) +
-  geom_point(size = 2.5) +
-  my_theme +
-  scale_color_manual(values = c("Male" = "#1f78b4", "Female" = "#e31a1c")) +
-  scale_y_continuous(labels = function(x) paste0(x, "%")) +
-  labs(
-    title = "AI Vulnerability by Sex",
-    subtitle = "Percentage of each sex's workforce in AI-vulnerable occupations",
-    x = "Year",
-    y = "Exposure Rate (%)"
+# Combine datasets
+ai_demographics <- bind_rows(ai_demographics_pr, ai_demographics_us)
+
+```
+
+### Demographic variations in AI vulnerable occupations for total population
+
+```{r}
+p <- ggplot(
+  ai_demographics %>% filter(ai_vuln == "AI Vulnerable"), 
+  aes(
+    x = YEAR, 
+    y = pct_workers, 
+    color = demographic, 
+    linetype = sex_label, 
+    shape = sex_label # Makes the points distinct too!
   )
+) +
+  geom_line(linewidth = 1.5) +
+  geom_point(size = 3) +
+  
+  my_theme +
+  
+  # Assign colors to the demographics
+  scale_color_manual(values = c(
+    "Puerto Rican Workers" = "#d95f02", 
+    "Total US Workers" = "#7570b3"
+  )) +
+  
+  # Format axes
+  scale_y_continuous(labels = function(x) paste0(x, "%")) +
+  scale_x_continuous(breaks = seq(1950, 2024, by = 10)) +
+  
+  labs(
+    title = "AI Vulnerability by Sex: Puerto Rican vs. Total US Workers",
+    subtitle = "Percentage of each sex's workforce in AI-vulnerable occupations",
+    x = NULL, 
+    y = "Exposure Rate",
+    color = "Demographic", # Titles for the legends
+    linetype = "Sex",
+    shape = "Sex",
+    caption = "Source: IPUMS USA, Decennial Census and ACS (1950-2024)"
+  )
+
+ggsave(
+  filename = "figures/ai_exposure_gender_presentation.png",
+  plot = p,
+  width = 10, # Width in inches (standard for 16:9 slides)
+  height = 5.625, # Height in inches (10 / (16/9) = 5.625)
+  dpi = 300, # 300 DPI ensures it won't look pixelated on a projector
+  bg = "white" # Ensures the background is solid white, not transparent
+)
+
+print(p)
 ```
 
 ## AI Vulnerable Occupations Puerto Rican trends
 
 ```{r Calculate Puerto Ricans in AI Vulnerable Occ, message=FALSE,warning=FALSE}
-
-ai_exposure_by_occ <- mapped_workers_db %>%
-  filter(ai_vuln == "AI Vulnerable") %>%
-  group_by(YEAR, is_pr, OCC2010) %>%
+ai_occ_exposure_pr <- mapped_workers_db %>%
+  filter(is_pr == TRUE, ai_vuln == "AI Vulnerable") %>%
+  group_by(YEAR, OCC2010) %>%
   summarise(workers = sum(PERWT, na.rm = TRUE), .groups = "drop") %>%
   collect() %>%
-  left_join(occ_labels, by = c("OCC2010" = "val"))%>%
-  group_by(YEAR,is_pr) %>%
-  mutate(
-    pct_workers = (workers / sum(workers)) * 100,
-    demographic = ifelse(is_pr, "Puerto Rican Workers", "Total US Workers")
-  ) %>%
+  left_join(occ_labels, by = c("OCC2010" = "val")) %>%
+  group_by(YEAR) %>%
+  mutate(pct_workers = (workers / sum(workers)) * 100, demographic = "Puerto Rican Workers") %>%
   ungroup()
+
+ai_occ_exposure_us <- mapped_workers_db %>%
+  filter(ai_vuln == "AI Vulnerable") %>%
+  group_by(YEAR, OCC2010) %>%
+  summarise(workers = sum(PERWT, na.rm = TRUE), .groups = "drop") %>%
+  collect() %>%
+  left_join(occ_labels, by = c("OCC2010" = "val")) %>%
+  group_by(YEAR) %>%
+  mutate(pct_workers = (workers / sum(workers)) * 100, demographic = "Total US Workers") %>%
+  ungroup()
+
+ai_exposure_by_occ <- bind_rows(ai_occ_exposure_pr, ai_occ_exposure_us)
 
 ```
 
-```{r}
+## Share of AI Workers per Occupation
+```{r Share of AI Workers by Occupation}
 # 1. Clean the labels before plotting
 ai_exposure_plot_data <- ai_exposure_by_occ %>%
   # Rename 'lbl' (from the left_join) so it's easier to reference
@@ -668,19 +749,122 @@ ggplot(ai_exposure_plot_data, aes(
   )
 ```
 
+
+```{r}
+ai_exposure_2024 <- ai_exposure_by_occ %>%
+  filter(YEAR == 2024) %>%
+  mutate(
+    # Create short, presentation-friendly names based on the OCC2010 codes
+    short_occ_name = case_when(
+      OCC2010 == 10 ~ "Execs & Legislators",
+      OCC2010 == 20 ~ "Gen & Ops Managers",
+      OCC2010 == 110 ~ "IT Managers",
+      OCC2010 == 120 ~ "Financial Managers",
+      OCC2010 == 800 ~ "Accountants & Auditors",
+      OCC2010 == 1010 ~ "Computer Programmers",
+      OCC2010 == 1020 ~ "Software Developers",
+      OCC2010 == 3255 ~ "Registered Nurses",
+      OCC2010 == 4850 ~ "Wholesale/Mfg Sales",
+      OCC2010 == 5240 ~ "Customer Service Reps",
+      OCC2010 == 5400 ~ "Receptionists",
+      OCC2010 == 5700 ~ "Secretaries & Admins",
+      OCC2010 == 7340 ~ "Maintenance & Repair",
+      TRUE ~ lbl # Fallback to the original label just in case
+    ),
+    # Reorder the abbreviated names based on the percentage for a clean descending chart
+    short_occ_name = fct_reorder(short_occ_name, pct_workers, .fun = max)
+  )
+
+p <- ggplot(ai_exposure_2024, aes(
+  x = pct_workers, 
+  y = short_occ_name, 
+  fill = demographic 
+)) +
+  # Draw side-by-side bars
+  geom_col(position = position_dodge(width = 0.8), width = 0.7) +
+  
+  # NEW: Add direct percentage labels to the ends of the dodged bars
+  geom_text(
+    aes(label = paste0(round(pct_workers, 1), "%")),
+    position = position_dodge(width = 0.8), # Must match the geom_col dodge width
+    hjust = -0.15,                          # Pushes text slightly outside the bar
+    size = 3.75, 
+    fontface = "bold", 
+    color = "gray30"
+  ) +
+  
+  # Apply your distinct demographic colors
+  scale_fill_manual(values = c(
+    "Puerto Rican Workers" = "#d95f02", 
+    "Total US Workers" = "#7570b3"      
+  )) +
+  
+  my_theme +
+  
+  # Format X-axis as percentages and expand the right side to fit the text labels
+  scale_x_continuous(
+    labels = function(x) paste0(x, "%"),
+    expand = expansion(mult = c(0, 0.15)) 
+  ) +
+  
+  labs(
+    title = "Concentration of AI-Vulnerable Occupations (2024)",
+    subtitle = "Comparing the distribution of exposed Puerto Rican workers vs. the Total US baseline",
+    x = "Share of AI-Vulnerable Workforce",
+    y = NULL, 
+    fill = NULL,
+    caption = "Source: IPUMS USA, Decennial Census and ACS (1950-2024)" # Standardized caption
+  ) +
+  
+  # Presentation styling overrides
+  theme(
+    plot.title = element_text(size = 18, face = "bold"),
+    plot.subtitle = element_text(size = 14, color = "grey30"),
+    axis.text.y = element_text(size = 12, face = "bold"), 
+    axis.text.x = element_text(size = 12),
+    axis.title.x = element_text(size = 14),
+    
+    # Move legend to the top and increase text size
+    legend.position = "top",
+    legend.text = element_text(size = 14),
+    
+    # Remove horizontal grid lines to keep the background behind the bars clean
+    panel.grid.major.y = element_blank(),
+    plot.caption = element_text(size = 10, color = "grey50", hjust = 1)
+  )
+
+ggsave(
+  filename = "figures/vuln_occ_share_presentation.png",
+  plot = p,
+  width = 10, # Width in inches (standard for 16:9 slides)
+  height = 5.625, # Height in inches (10 / (16/9) = 5.625)
+  dpi = 300, # 300 DPI ensures it won't look pixelated on a projector
+  bg = "white" # Ensures the background is solid white, not transparent
+)
+
+print(p)
+```
+
 ### Average Wage by Occupaitons vulnerable to AI over time (2001-2024)
 
 ```{r Calculate Average Wage per Occupations, message=FALSE,warning=FALSE}
-ai_wage_data_by_occ <- mapped_workers_db %>%
-  filter(ai_vuln == "AI Vulnerable", INCWAGE > 0, INCWAGE < 999999) %>%
-  group_by(YEAR, is_pr, OCC2010) %>%
-  summarise(
-    avg_wage = sum(INCWAGE * CPI99 * PERWT, na.rm = TRUE) / sum(PERWT, na.rm = TRUE),
-    .groups = "drop"
-  ) %>%
+ai_occ_wage_pr <- mapped_workers_db %>%
+  filter(is_pr == TRUE, ai_vuln == "AI Vulnerable", INCWAGE > 0, INCWAGE < 999999) %>%
+  group_by(YEAR, OCC2010) %>%
+  summarise(avg_wage = sum(INCWAGE * CPI99 * PERWT, na.rm = TRUE) / sum(PERWT, na.rm = TRUE), .groups = "drop") %>%
   collect() %>%
-  left_join(occ_labels, by = c("OCC2010" = "val"))%>%
-  mutate(demographic = ifelse(is_pr, "Puerto Rican Workers", "Total US Workers"))
+  left_join(occ_labels, by = c("OCC2010" = "val")) %>%
+  mutate(demographic = "Puerto Rican Workers")
+
+ai_occ_wage_us <- mapped_workers_db %>%
+  filter(ai_vuln == "AI Vulnerable", INCWAGE > 0, INCWAGE < 999999) %>%
+  group_by(YEAR, OCC2010) %>%
+  summarise(avg_wage = sum(INCWAGE * CPI99 * PERWT, na.rm = TRUE) / sum(PERWT, na.rm = TRUE), .groups = "drop") %>%
+  collect() %>%
+  left_join(occ_labels, by = c("OCC2010" = "val")) %>%
+  mutate(demographic = "Total US Workers")
+
+ai_wage_data_by_occ <- bind_rows(ai_occ_wage_pr, ai_occ_wage_us)
 ```
 
 ### Visualize Average Wage over time for exposed Occupations
@@ -735,16 +919,369 @@ ggplot(ai_wage_data_by_occ, aes(
   )
 ```
 
+## AI vulnerability comparison with other race categories
+
+```{r}
+# Calculate AI exposure by Race, Ethnicity, and Puerto Rican Origin
+ai_race_exposure <- mapped_workers_db %>%
+  filter(ai_vuln != "Unclassified") %>%
+  mutate(
+    race_cat = case_when(
+      HISPAN == 2 | HISPAND == 200 | ANCESTR1 == 261 ~ "Puerto Rican",
+      HISPAN > 0 & HISPAN < 9 ~ "Other Hispanic",
+      RACE == 1 ~ "White",
+      RACE == 2 ~ "Black/African American",
+      RACE == 3 ~ "AIAN",
+      RACE >= 4 & RACE <= 6 ~ "Asian/PI",
+      RACE >= 7 ~ "Other",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  filter(!is.na(race_cat)) %>%
+  group_by(YEAR, race_cat, ai_vuln) %>%
+  summarise(workers = sum(PERWT, na.rm = TRUE), .groups = "drop") %>%
+  
+  # Pull the summarized data into local R memory FIRST
+  collect() %>%
+  
+  # NOW apply the factor conversion locally
+  mutate(
+    race_cat = factor(race_cat, levels = c(
+      "Puerto Rican", "Other Hispanic", "White", "Black/African American", 
+      "Asian/PI", "AIAN", "Other"
+    ))
+  ) %>%
+  
+  # Proceed with the percentage calculation
+  group_by(YEAR, race_cat) %>%
+  mutate(pct_workers = (workers / sum(workers)) * 100) %>%
+  ungroup()
+```
+
+## Visualize share of vulnerable workers
+
+```{r}
+
+p <- ggplot(ai_race_exposure %>% filter(YEAR == 2024, ai_vuln == "AI Vulnerable"), 
+       aes(x = pct_workers, y = race_cat, fill = race_cat)) +
+  geom_col(alpha = 0.9) +
+  
+  # Add direct percentage labels to the end of each bar for instant readability
+  geom_text(
+    aes(label = paste0(round(pct_workers, 1), "%")),
+    hjust = -0.2, # Pushes the text slightly outside the bar
+    size = 5, 
+    fontface = "bold", 
+    color = "gray20"
+  ) +
+  
+  my_theme +
+  
+  # Keep the consistent colors, highlighting Puerto Ricans in orange
+  scale_fill_manual(values = c(
+    "Puerto Rican" = "#d95f02",           # Your signature highlight orange
+    "Other Hispanic" = "#bdc3c7",         # Muted gray
+    "White" = "#bdc3c7",
+    "Black/African American" = "#bdc3c7",
+    "Asian/PI" = "#bdc3c7",
+    "AIAN" = "#bdc3c7",
+    "Other" = "#bdc3c7"
+  )) +
+  
+  # Expand the X-axis slightly so the text labels don't get cut off on the right
+  scale_x_continuous(expand = expansion(mult = c(0, 0.15))) +
+  
+  labs(
+    title = "AI Vulnerability by Race and Ethnicity (2024)",
+    subtitle = "Share of workers employed in AI-vulnerable occupations",
+    x = NULL,
+    y = NULL, # The categories are self-explanatory, no y-axis title needed
+    caption = "Source: IPUMS USA, ACS (2024)"
+  ) +
+  
+  # Aggressive decluttering for the presentation slide
+  theme(
+    plot.title = element_text(size = 18, face = "bold"),
+    plot.subtitle = element_text(size = 14, color = "grey30"),
+    axis.text.y = element_text(size = 14, face = "bold"),
+    
+    # Hide the legend, X-axis text, and gridlines to keep focus on the bars and labels
+    legend.position = "none",
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank(),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(),
+    
+    plot.caption = element_text(size = 10, color = "grey50", hjust = 1) 
+  )
+
+ggsave(
+  filename = "figures/ai_race_comp_presentation.png",
+  plot = p,
+  width = 10, # Width in inches (standard for 16:9 slides)
+  height = 5.625, # Height in inches (10 / (16/9) = 5.625)
+  dpi = 300, # 300 DPI ensures it won't look pixelated on a projector
+  bg = "white" # Ensures the background is solid white, not transparent
+)
+```
+
+## Wage tier analysis for Top 10 Occupations
+
+```{r}
+# 1. Calculate National Wage Tiers for Occupations by Year
+us_occ_wage_tiers <- mapped_workers_db %>%
+  filter(INCWAGE > 0, INCWAGE < 999999) %>%
+  group_by(YEAR, OCC2010) %>%
+  summarise(
+    us_avg_wage = sum(INCWAGE * CPI99 * PERWT, na.rm = TRUE) / sum(PERWT, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  collect() %>% # Bring to local memory before using ntile()
+  group_by(YEAR) %>%
+  mutate(
+    tier_num = ntile(us_avg_wage, 3),
+    wage_tier = case_when(
+      tier_num == 3 ~ "High-Paying",
+      tier_num == 2 ~ "Middle-Paying",
+      tier_num == 1 ~ "Low-Paying"
+    ),
+    wage_tier = factor(wage_tier, levels = c("High-Paying", "Middle-Paying", "Low-Paying"))
+  ) %>%
+  ungroup() %>%
+  select(YEAR, OCC2010, wage_tier)
+
+# 2. Join Wage Tiers to the Continuous Male Trends
+continuous_male_trends_tiered <- continuous_male_trends %>%
+  left_join(us_occ_wage_tiers, by = c("YEAR", "OCC2010"))
+
+# 3. Join Wage Tiers to the Continuous Female Trends
+continuous_female_trends_tiered <- continuous_female_trends %>%
+  left_join(us_occ_wage_tiers, by = c("YEAR", "OCC2010"))
+
+# Define the abbreviation logic
+abbreviate_occupations <- function(df) {
+  df %>%
+    mutate(
+      short_occ_name = case_when(
+        # Replace these examples with the actual OCC2010 codes in your Top 10
+        OCC2010 == 7200 ~ "Mechanics",
+        OCC2010 == 9130 ~ "Truck Drivers",
+        OCC2010 == 4720 ~ "Cashiers",
+        OCC2010 == 4700 ~ "Retail Supervisors",
+        OCC2010 == 4060 ~ "Food Service Workers",
+        OCC2010 == 4600 ~ "Childcare Workers",
+        OCC2010 == 3255 ~ "Registered Nurses",
+        OCC2010 == 4110 ~ "Waiters & Waitresses",
+        OCC2010 == 4760 ~ "Retail Salespersons",
+        OCC2010 == 5700 ~ "Secretaries & Admins",
+        OCC2010 == 5000 ~ "Office Supervisors",
+        OCC2010 == 9620 ~ "Freight and Stock Movers",
+        OCC2010 == 430 ~ "Other Managers",
+        OCC2010 == 8965 ~ "Other Production Workers",
+        
+        
+        # Fallback: keep the original name if you didn't explicitly abbreviate it
+        TRUE ~ occupation_name 
+      ),
+      # Optional: Wrap the text just in case the abbreviation is still a bit wide
+      short_occ_name = str_wrap(short_occ_name, width = 25)
+    )
+}
+
+# Apply it to both of your continuous trend dataframes
+continuous_male_trends_tiered <- abbreviate_occupations(continuous_male_trends_tiered)
+continuous_female_trends_tiered <- abbreviate_occupations(continuous_female_trends_tiered)
+```
 
 
+```{r}
+p <- ggplot(continuous_male_trends_tiered, aes(x = YEAR, y = total_estimated_workers)) +
+  
+  # Draw a neutral line to establish the workforce volume trend
+  geom_line(color = "gray60", linewidth = 1.2) +
+  
+  # Add points colored by the wage tier to show economic shifts over time
+  geom_point(aes(color = wage_tier), size = 2) +
+  
+  facet_wrap(~ short_occ_name, ncol = 4, scales = "free_y") +
+  
+  # Distinct colors for wage tiers
+  scale_color_manual(values = c(
+    "High-Paying" = "#1b9e77",   # Green
+    "Middle-Paying" = "#d95f02", # Orange
+    "Low-Paying" = "#7570b3"     # Purple
+  )) +
+  
+  my_theme +
+  
+  scale_y_continuous(labels = scales::label_comma()) +
+  scale_x_continuous(breaks = seq(1950, 2024, by = 10)) +
+  
+  labs(
+    title = "Top Occupations for Puerto Rican Male Workers Over Time",
+    subtitle = "Continuous workforce volume, colored by the national wage tier of the occupation",
+    x = NULL,
+    y = "Estimated Total Workers",
+    color = "National Wage Tier",
+    caption = "Source: IPUMS USA, ACS (2001-2024)"
+  ) +
+  
+  # Presentation styling
+  theme(# Reduce header text size (e.g., down to 7pt or 8pt) and trim padding
+  strip.text = element_text(
+    size = 7.5, 
+    face = "bold", 
+    margin = margin(t = 2, b = 2) # Minimal top and bottom padding
+  ),
+  
+  # Shrink axis text slightly to give panels more room
+  axis.text.x = element_text(size = 7, angle = 45, hjust = 1),
+  axis.text.y = element_text(size = 7),
+  
+  # Reduce spacing between individual facet panels
+  panel.spacing = unit(0.5, "lines"),
+  
+  # Legend & Title Sizing
+  plot.title = element_text(size = 16, face = "bold"),
+  plot.subtitle = element_text(size = 12, color = "grey30"),
+  legend.position = "top",
+  legend.box = "vertical",
+  legend.text = element_text(size = 10),
+  plot.caption = element_text(size = 9, color = "grey50", hjust = 1)
+  )
 
+ggsave(
+  filename = "figures/top_occ_male_presentation.png",
+  plot = p,
+  width = 10, # Width in inches (standard for 16:9 slides)
+  height = 5.625, # Height in inches (10 / (16/9) = 5.625)
+  dpi = 300, # 300 DPI ensures it won't look pixelated on a projector
+  bg = "white" # Ensures the background is solid white, not transparent
+)
 
+print(p)
+```
 
+```{r}
+p <- ggplot(continuous_female_trends_tiered, aes(x = YEAR, y = total_estimated_workers)) +
+  
+  # Draw a neutral line to establish the workforce volume trend
+  geom_line(color = "gray60", linewidth = 1.2) +
+  
+  # Add points colored by the wage tier to show economic shifts over time
+  geom_point(aes(color = wage_tier), size = 2) +
+  
+  facet_wrap(~ short_occ_name, ncol = 4, scales = "free_y") +
+  
+  # Distinct colors for wage tiers
+  scale_color_manual(values = c(
+    "High-Paying" = "#1b9e77",   # Green
+    "Middle-Paying" = "#d95f02", # Orange
+    "Low-Paying" = "#7570b3"     # Purple
+  )) +
+  
+  my_theme +
+  
+  scale_y_continuous(labels = scales::label_comma()) +
+  scale_x_continuous(breaks = seq(1950, 2024, by = 10)) +
+  
+  labs(
+    title = "Top Occupations for Puerto Rican Female Workers Over Time",
+    subtitle = "Continuous workforce volume, colored by the national wage tier of the occupation",
+    x = NULL,
+    y = "Estimated Total Workers",
+    color = "National Wage Tier",
+    caption = "Source: IPUMS USA, ACS (2001-2024)"
+  ) +
+  
+  # Presentation styling
+  theme(# Reduce header text size (e.g., down to 7pt or 8pt) and trim padding
+  strip.text = element_text(
+    size = 7.5, 
+    face = "bold", 
+    margin = margin(t = 2, b = 2) # Minimal top and bottom padding
+  ),
+  
+  # Shrink axis text slightly to give panels more room
+  axis.text.x = element_text(size = 7, angle = 45, hjust = 1),
+  axis.text.y = element_text(size = 7),
+  
+  # Reduce spacing between individual facet panels
+  panel.spacing = unit(0.5, "lines"),
+  
+  # Legend & Title Sizing
+  plot.title = element_text(size = 16, face = "bold"),
+  plot.subtitle = element_text(size = 12, color = "grey30"),
+  legend.position = "top",
+  legend.box = "vertical",
+  legend.text = element_text(size = 10),
+  plot.caption = element_text(size = 9, color = "grey50", hjust = 1)
+  )
 
+ggsave(
+  filename = "figures/top_occ_female_presentation.png",
+  plot = p,
+  width = 10, # Width in inches (standard for 16:9 slides)
+  height = 5.625, # Height in inches (10 / (16/9) = 5.625)
+  dpi = 300, # 300 DPI ensures it won't look pixelated on a projector
+  bg = "white" # Ensures the background is solid white, not transparent
+)
+```
 
+```{r}
+# 1. Add a sex identifier to both datasets and combine them
+combined_gender_trends <- bind_rows(
+  continuous_male_trends_tiered %>% mutate(sex_label = "Male"),
+  continuous_female_trends_tiered %>% mutate(sex_label = "Female")
+)
 
-
-
-
-
+# 2. Plot the combined data
+ggplot(combined_gender_trends, aes(x = YEAR, y = total_estimated_workers, group = sex_label)) +
+  
+  # Map line type to sex so the audience can tell them apart
+  geom_line(aes(linetype = sex_label), color = "gray60", linewidth = 1) +
+  
+  # Map color to wage tier, and shape to sex
+  geom_point(aes(color = wage_tier, shape = sex_label), size = 2.5) +
+  
+  facet_wrap(~ short_occ_name, ncol = 4, scales = "free_y") +
+  
+  scale_color_manual(values = c(
+    "High-Paying" = "#1b9e77",   
+    "Middle-Paying" = "#d95f02", 
+    "Low-Paying" = "#7570b3"     
+  )) +
+  
+  my_theme +
+  
+  scale_y_continuous(labels = scales::label_comma()) +
+  scale_x_continuous(breaks = seq(1950, 2024, by = 10)) +
+  
+  labs(
+    title = "Top Occupations for Puerto Rican Workers by Sex",
+    subtitle = "Comparing male and female workforce volumes across major occupations",
+    x = NULL,
+    y = "Estimated Total Workers",
+    color = "National Wage Tier",
+    linetype = "Sex",
+    shape = "Sex",
+    caption = "Source: IPUMS USA, Decennial Census and ACS (1950-2024)"
+  ) +
+  
+  theme(
+    plot.title = element_text(size = 18, face = "bold"),
+    plot.subtitle = element_text(size = 14, color = "grey30"),
+    
+    # We need the legends at the top to be clear and distinct
+    legend.position = "top",
+    legend.box = "vertical", # Stacks the two legends so they don't crash into each other
+    legend.text = element_text(size = 12, face = "bold"),
+    legend.title = element_text(size = 12),
+    
+    strip.text = element_text(size = 10, face = "bold"),
+    axis.text.y = element_text(size = 9),
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 9),
+    plot.caption = element_text(size = 10, color = "grey50", hjust = 1)
+  )
+```
 
