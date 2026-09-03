@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 ---
 title: "011_AI_vulnerable_occupaitons"
 author: "Jorge R. Soldevila Irizarry"
@@ -11,6 +10,8 @@ knitr::opts_chunk$set(echo = TRUE)
 
 options(scipen = 999)
 selected_years <- c(2005, 2010, 2015, 2020)
+ddi <- read_ipums_ddi("./usa_00121.xml")
+occ_labels <- ipums_val_labels(ddi, OCC2010)
 
 # Source central setup file
 source("00_project_setup.R")
@@ -65,7 +66,8 @@ mapped_workers_db <- data_acs %>%
       
       # Combines 1990 Eating/Drinking places (641) with Hotels/Lodging (762, 770)
       IND1990 %in% c(641, 762, 770) ~ "Accom & Food Svcs",
-      IND1990 %in% c(750, 751, 752, 761, 771, 772, 781, 791) ~ "Other Svcs (excl. Pub Admin)",
+      IND1990 %in% c(750, 751, 752, 761, 771, 772, 
+                     781, 791) ~ "Other Svcs (excl. Pub Admin)",
       IND1990 >= 900 & IND1990 <= 932 ~ "Public Admin",
       IND1990 >= 940 & IND1990 <= 960 ~ "Military",
       TRUE ~ "Unclassified / NILF"
@@ -104,14 +106,29 @@ mapped_workers_db <- data_acs %>%
     ),
     # Map AI vulnerable occupaitons 
     ai_vuln = case_when(
-  OCC2010 %in% c(10, 20, 110, 120, 150, 160, 630, 430, 540, 565, 650, 700, 735, 
+  OCC2010 %in% c(10, 20, 110, 120, 150, 160, 430, 540, 565, 630, 650, 700, 735, 
                  740, 800, 910, 1005, 1006, 1007, 1010, 1020, 1050, 1105, 1106, 
-                 1400, 1430, 1460, 1530, 1965, 2825, 3255, 3510,3655, 4830, 4850, 
+                 1400, 1430, 1460, 1530, 1965, 2825, 3255, 3510, 3655, 4830, 4850, 
                  4940, 5100, 5110, 5120, 5160, 5240, 5400, 5520, 5600, 5700, 
-                 5840,5860, 7340) ~ "AI Vulnerable",
+                 5840,5860) ~ "AI Vulnerable",
   OCC2010 %in% c(9920, 9999) ~ "Unclassified",
   TRUE ~ "Not AI Vulnerable"
+  ),
+  ai_vul_grp = case_when(
+    OCC2010 %in% c(10,20,110,120,150,160,430) ~ "Management",
+    OCC2010 %in% c(540, 565, 630, 650, 700, 735,740) ~ "Business Operations",
+    OCC2010 %in% c(800, 910) ~ "Financial Specialists",
+    OCC2010 %in% c(1005, 1006, 1007, 1010, 1020, 1050,
+                   1105, 1106, 1400, 1430, 1460, 1530,
+                   1965) ~ "STEM",
+    OCC2010 %in% c(2825) ~ "Entertainment and Media",
+    OCC2010 %in% c(3255, 3510, 3655) ~ "Health Care",
+    OCC2010 %in% c(4830, 4850, 4940) ~ "Sales and Related",
+    OCC2010 %in% c(5100, 5110, 5120, 5160, 5240, 5400,
+                   5520, 5600, 5700, 5840,5860) ~ "Admin & Office Support",
+    TRUE ~ "Not AI Vulnerable"
   )
+
 )
 ```
 
@@ -151,8 +168,6 @@ top_10_pr_occ_by_year <- mapped_workers_db %>%
 ### Add labels to occupation categories
 
 ```{r Add labeles to Occupation, message=FALSE,warning=FALSE}
-ddi <- read_ipums_ddi("./usa_00121.xml")
-occ_labels <- ipums_val_labels(ddi, OCC2010)
 
 # Join the text labels to your top 10 list
 top_10_pr_occ_labeled <- top_10_pr_occ_by_year %>%
@@ -524,30 +539,33 @@ ai_exposure_data <- bind_rows(ai_exposure_pr, ai_exposure_us)
 ```{r }
 p <- ggplot(ai_exposure_data %>% filter(ai_vuln == "AI Vulnerable"), 
        aes(x = YEAR, y = pct_workers, color = demographic)) +
-  geom_line(linewidth = 1.5) +  # Increased for screen visibility
-  geom_point(size = 3) +        # Increased for screen visibility
+  geom_line(linewidth = 1.5) +  
+  geom_point(size = 3) +    
   my_theme +
   scale_color_manual(values = c("Puerto Rican Workers" = "#d95f02", "Total US Workers" = "#7570b3")) +
-  scale_y_continuous(labels = function(x) paste0(x, "%")) +
+  scale_y_continuous(
+    limits = c(0, 30),
+    breaks = seq(0,100, by = 5),
+    labels = function(x) paste0(x, "%")) +
   scale_x_continuous(breaks = seq(2001, 2024, by = 5)) +
   labs(
     title = "Workforce Exposure to AI Technologies", 
     subtitle = "Percentage of workers employed in AI-vulnerable occupations (2001-2024)", 
     x = NULL, 
     y = "Share of Workforce", 
-    caption = "Source: IPUMS USA, ACS (2001-2024)" # Added source citation
+    caption = "Source: IPUMS USA, ACS (2001-2024)" 
   )
 
 print(p)
 
-ggsave(
-  filename = "figures/ai_exposure_presentation.png",
-  plot = p,
-  width = 10, # Width in inches (standard for 16:9 slides)
-  height = 5.625, # Height in inches (10 / (16/9) = 5.625)
-  dpi = 300, # 300 DPI ensures it won't look pixelated on a projector
-  bg = "white" # Ensures the background is solid white, not transparent
-)
+# ggsave(
+#   filename = "figures/ai_exposure_presentation.png",
+#   plot = p,
+#   width = 10, # Width in inches (standard for 16:9 slides)
+#   height = 5.625, # Height in inches (10 / (16/9) = 5.625)
+#   dpi = 300, # 300 DPI ensures it won't look pixelated on a projector
+#   bg = "white" # Ensures the background is solid white, not transparent
+# )
 ```
 
 ### Wage Premium or Penalty for AI vulnerable occupations
@@ -701,6 +719,7 @@ ai_exposure_by_occ <- bind_rows(ai_occ_exposure_pr, ai_occ_exposure_us)
 ```
 
 ## Share of AI Workers per Occupation
+
 ```{r Share of AI Workers by Occupation}
 # 1. Clean the labels before plotting
 ai_exposure_plot_data <- ai_exposure_by_occ %>%
@@ -749,7 +768,6 @@ ggplot(ai_exposure_plot_data, aes(
     y = "Share of AI-Vulnerable Workforce (%)"
   )
 ```
-
 
 ```{r}
 ai_exposure_2024 <- ai_exposure_by_occ %>%
@@ -1016,14 +1034,14 @@ p <- ggplot(ai_race_exposure %>% filter(YEAR == 2024, ai_vuln == "AI Vulnerable"
     plot.caption = element_text(size = 10, color = "grey50", hjust = 1) 
   )
 
-ggsave(
-  filename = "figures/ai_race_comp_presentation.png",
-  plot = p,
-  width = 10, # Width in inches (standard for 16:9 slides)
-  height = 5.625, # Height in inches (10 / (16/9) = 5.625)
-  dpi = 300, # 300 DPI ensures it won't look pixelated on a projector
-  bg = "white" # Ensures the background is solid white, not transparent
-)
+# ggsave(
+#   filename = "figures/ai_race_comp_presentation.png",
+#   plot = p,
+#   width = 10, # Width in inches (standard for 16:9 slides)
+#   height = 5.625, # Height in inches (10 / (16/9) = 5.625)
+#   dpi = 300, # 300 DPI ensures it won't look pixelated on a projector
+#   bg = "white" # Ensures the background is solid white, not transparent
+# )
 ```
 
 ## Wage tier analysis for Top 10 Occupations
@@ -1093,7 +1111,6 @@ abbreviate_occupations <- function(df) {
 continuous_male_trends_tiered <- abbreviate_occupations(continuous_male_trends_tiered)
 continuous_female_trends_tiered <- abbreviate_occupations(continuous_female_trends_tiered)
 ```
-
 
 ```{r}
 p <- ggplot(continuous_male_trends_tiered, aes(x = YEAR, y = total_estimated_workers)) +
@@ -1286,14 +1303,6 @@ ggplot(combined_gender_trends, aes(x = YEAR, y = total_estimated_workers, group 
   )
 ```
 
-=======
----
-title: "011_AI_vulnerable_occupaitons"
-author: "Jorge R. Soldevila Irizarry"
-date: "`r Sys.Date()`"
-output: github_document
----
-
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 
@@ -1440,6 +1449,7 @@ top_10_pr_occ_labeled <- top_10_pr_occ_by_year %>%
 
 print(top_10_pr_occ_labeled)
 ```
+
 ### Visualize Top 10 occupations by year
 
 ```{r Plot top 10 occupations in timeseries, message=FALSE,warning=FALSE}
@@ -1485,7 +1495,6 @@ ggplot(top_10_pr_occ_labeled, aes(
     color = "AI Vulnerability Risk"
   )
 ```
-
 
 ```{r Top 10 occupations for PR visualization, message=FALSE, warning=FALSE}
 ggplot(top_10_pr_occ_labeled, aes(
@@ -1667,6 +1676,7 @@ ggplot(top_10_pr_occ_sex_labeled %>% filter(sex_label == "Female"), aes(
     color = "AI Vulnerability Risk"
   )
 ```
+
 ### Continous visualization of Male and Female Top 10 Occupations
 
 ```{r Continuos top 10 occupations PR Males, message=FALSE, warning=FALSE}
@@ -1718,7 +1728,6 @@ ggplot(continuous_male_trends, aes(
     color = "AI Vulnerability Risk"
   )
 ```
-
 
 ```{r Continuos top 10 occupations PR Males, message=FALSE, warning=FALSE}
 # 1. Identify which occupations ever made the Top 10 for females
@@ -1866,6 +1875,7 @@ ggplot(ai_demographics %>% filter(ai_vuln == "AI Vulnerable"),
 ```
 
 ### Demographic variations in AI vulnerable occupations for total population
+
 ```{r}
 ai_demographics_us <- mapped_workers_db %>%
   filter(ai_vuln != "Unclassified", SEX != 9) %>%
@@ -2026,18 +2036,3 @@ ggplot(ai_wage_data_by_occ, aes(
     y = "Average Annual Wage ($)"
   )
 ```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
->>>>>>> b7ffef141aa22253a8b187ea6e98da4ffc2b3916

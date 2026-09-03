@@ -3,7 +3,7 @@
 # 1. Load Libraries
 if (!require("pacman")) install.packages("pacman")
 pacman::p_load(tidyverse, DBI, RPostgres, scales, ipumsr,readxl,usmap,
-               gghighlight,styler,Hmisc)
+               gghighlight,styler,Hmisc,zoo)
 
 # 2. Database Connection
 con <- dbConnect(
