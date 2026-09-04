@@ -1,0 +1,3353 @@
+---
+title: "010_pr_labor_historical"
+author: "Jorge R. Soldevila Irizarry"
+date: "`r Sys.Date()`"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  warning = FALSE,
+  message = FALSE
+)
+
+options(scipen = 999)
+selected_years <- c(2005, 2010, 2015, 2020)
+
+# Source central setup file
+source("00_project_setup.R")
+```
+
+# Puerto Ricans in the US Labor Force 1950-2010
+
+```{r, Calculate estimates for Puerto Ricans and Total US Pop}
+pr_labfor_50_10 <- calculate_lfpr(data_hist, pr_filter = TRUE)
+us_labfor_50_10 <- calculate_lfpr(data_hist, pr_filter = FALSE)
+```
+
+## Change in Working Age Puerto Ricans 1950 to 2010
+
+```{r Visualize Total Puerto Ricans working age}
+# We can now visualize the working age Puerto Rican population since 1950
+ggplot() +
+  geom_line(data = pr_labfor_50_10,
+            aes(x = YEAR, y = total_pop, color = "PR in US"),
+            linewidth = 1) +
+  geom_point(data = pr_labfor_50_10,
+             aes(x = YEAR, y = total_pop, color = "PR in US"),
+             size = 2) +
+  geom_text(
+    data = pr_labfor_50_10,
+    aes(
+      x = YEAR,
+      y = total_pop,
+      label = label_number(
+        scale = 1e-6,
+        suffix = "M",
+        accuracy = 0.1
+      )(total_pop)
+    ),
+    vjust = -1.5,
+    show.legend = FALSE
+  ) +
+  # important_years_lines +
+  my_theme +
+  labs(title = "Working age non-institutionalized Puerto Ricans, 1950-2024", 
+       x = "Year", y = "Estimated Population") +
+  scale_y_continuous(labels = label_number(scale = 1e-6, suffix = "M")) +
+  scale_x_continuous(breaks = seq(1950, 2024, by = 10))
+```
+
+## We can visualize now the population that was in the labor force
+
+```{r Visualize Total Puerto Ricans in labor force}
+# We can now visualize the Puerto Rican population in the labor force since 1950.
+
+ggplot() +
+  geom_line(
+    data = pr_labfor_50_10,
+    aes(x = YEAR, y = in_labfor, color = "PR in US"),
+    linewidth = 1
+  ) +
+  geom_point(
+    data = pr_labfor_50_10,
+    aes(x = YEAR, y = in_labfor, color = "PR in US"),
+    size = 2
+  ) +
+  geom_text(
+    data = pr_labfor_50_10,
+    aes(
+      x = YEAR,
+      y = in_labfor,
+      label = label_number(
+        scale = 1e-6,
+        suffix = "M",
+        accuracy = 0.1
+      )(in_labfor)
+    ),
+    vjust = -1.5,
+    show.legend = FALSE
+  ) +
+  my_theme +
+  labs(title = "Puerto Ricans in the Labor Force, 1950-2024", 
+       x = "Year", 
+       y = "Estimated Population") +
+  scale_y_continuous(labels = label_number(scale = 1e-6, suffix = "M")) +
+  scale_x_continuous(breaks = seq(1950, 2024, by = 10))
+```
+
+## We can now visualize the Labor Force Participation Rate for Puerto Ricans
+
+```{r Visualize Total Puerto Ricans LFPR}
+# We can now visualize the Puerto Rican Labor FOrce Participation Rate since 1950.
+
+ggplot() +
+  geom_line(
+    data = pr_labfor_50_10,
+    aes(x = YEAR, y = labfor_rate, color = "PR"),
+    linewidth = 1
+  ) +
+  geom_point(
+    data = pr_labfor_50_10,
+    aes(x = YEAR, y = labfor_rate, color = "PR"),
+    size = 2
+  ) +
+  geom_line(
+    data = us_labfor_50_10,
+    aes(x = YEAR, y = labfor_rate, color = "US"),
+    linewidth = 1
+  ) +
+  geom_point(
+    data = us_labfor_50_10,
+    aes(x = YEAR, y = labfor_rate, color = "US"),
+    size = 2
+  ) +
+  my_theme +
+  scale_color_manual(values = c("PR" = "#d95f02", "US" = "#7570b3")) +
+  labs(title = "Labor Force Participaiton Rate for Puerto Ricans and Total Population in US, 1950-2024", 
+       x = "Year", 
+       y = "Rate") +
+  scale_x_continuous(breaks = seq(1950, 2024, by = 10))
+```
+
+## Age Adjusted Labor Force Participation Rate
+
+```{r Age adjusted calculation}
+pr_lf_rate_us <- calculate_age_adjusted_lfpr(data_hist, HISPAN == 2 |
+  HISPAND == 200 |
+  ANCESTR1 == 261)
+lf_rate_us <- calculate_age_adjusted_lfpr(data_hist)
+```
+
+### Visualize Age Adjusted labor force participation rate
+
+```{r Age adjusted LFPR visualization}
+p <- ggplot() +
+  geom_line(
+    data = pr_lf_rate_us,
+    aes(x = YEAR, y = adjusted_lfpr, color = "Puerto Rican"),
+    linewidth = 1.5 
+  ) +
+  geom_point(
+    data = pr_lf_rate_us,
+    aes(x = YEAR, y = adjusted_lfpr, color = "Puerto Rican"),
+    size = 3 
+  ) +
+  geom_line(
+    data = lf_rate_us,
+    aes(x = YEAR, y = adjusted_lfpr, color = "Total US"),
+    linewidth = 1.5
+  ) +
+  geom_point(
+    data = lf_rate_us,
+    aes(x = YEAR, y = adjusted_lfpr, color = "Total US"),
+    size = 3
+  ) +
+  my_theme +
+  # Expanded labels for clarity
+  scale_color_manual(values = c("Puerto Rican" = "#d95f02", "Total US" = "#7570b3")) +
+  # Appends a % sign to the y-axis values
+  scale_y_continuous(labels = function(x) paste0(x, "%")) +
+  scale_x_continuous(breaks = seq(1950, 2024, by = 10)) +
+  labs(
+    title = "Age-Adjusted Labor Force Participation Rates",
+    subtitle = "Comparing Puerto Rican workers to the total US population (1950-2024)",
+    x = NULL, # 'Year' is obvious, so we remove the label to save space
+    y = "Participation Rate",
+    caption = "Source: IPUMS USA, Decennial Census and ACS (1950-2024)"
+  ) +
+  # Overriding my_theme defaults to make text presentation-sized
+  theme(
+    plot.title = element_text(size = 18, face = "bold"),
+    plot.subtitle = element_text(size = 14, color = "grey30"),
+    axis.text = element_text(size = 12),
+    axis.title = element_text(size = 14),
+    legend.text = element_text(size = 14),
+    plot.caption = element_text(size = 10, color = "grey50", hjust = 1)
+  )
+
+print(p)
+
+ggsave(
+  filename = "figures/age_adj_pr_lfpr_presentation.png",
+  plot = p,
+  width = 10, # Width in inches (standard for 16:9 slides)
+  height = 5.625, # Height in inches (10 / (16/9) = 5.625)
+  dpi = 300, # 300 DPI ensures it won't look pixelated on a projector
+  bg = "white" # Ensures the background is solid white, not transparent
+)
+```
+
+\
+
+## Employment-to-populaiton Ratio adjusted
+
+```{r Age adjusted Emp-Pop Ratio visualization}
+p <- ggplot() +
+  geom_line(
+    data = pr_lf_rate_us,
+    aes(x = YEAR, y = adjusted_etop, color = "Puerto Rican"),
+    linewidth = 1.5 
+  ) +
+  geom_point(
+    data = pr_lf_rate_us,
+    aes(x = YEAR, y = adjusted_etop, color = "Puerto Rican"),
+    size = 3 
+  ) +
+  geom_line(
+    data = lf_rate_us,
+    aes(x = YEAR, y = adjusted_etop, color = "Total US"),
+    linewidth = 1.5
+  ) +
+  geom_point(
+    data = lf_rate_us,
+    aes(x = YEAR, y = adjusted_etop, color = "Total US"),
+    size = 3
+  ) +
+  my_theme +
+  # Expanded labels for clarity
+  scale_color_manual(values = c("Puerto Rican" = "#d95f02", "Total US" = "#7570b3")) +
+  # Appends a % sign to the y-axis values
+  scale_y_continuous(labels = function(x) paste0(x, "%")) +
+  scale_x_continuous(breaks = seq(1950, 2024, by = 10)) +
+  labs(
+    title = "Age-Adjusted Employment-to-Population Ratio",
+    subtitle = "Comparing Puerto Rican workers to the total US population (1950-2024)",
+    x = NULL,
+    y = "Ratio",
+    caption = "Source: IPUMS USA, Decennial Census and ACS (1950-2024)"
+  ) +
+  # Overriding my_theme defaults to make text presentation-sized
+  theme(
+    plot.title = element_text(size = 18, face = "bold"),
+    plot.subtitle = element_text(size = 14, color = "grey30"),
+    axis.text = element_text(size = 12),
+    axis.title = element_text(size = 14),
+    legend.text = element_text(size = 14),
+    plot.caption = element_text(size = 10, color = "grey50", hjust = 1)
+  )
+
+ggsave(
+  filename = "figures/age_adj_pr_etop_presentation.png",
+  plot = p,
+  width = 10, # Width in inches (standard for 16:9 slides)
+  height = 5.625, # Height in inches (10 / (16/9) = 5.625)
+  dpi = 300, # 300 DPI ensures it won't look pixelated on a projector
+  bg = "white" # Ensures the background is solid white, not transparent
+)
+
+print(p)
+```
+
+## Unemployment Rate for Puerto Ricans and Total Population
+
+```{r Unemployment Rate Visualization}
+p <- ggplot() +
+  geom_line(
+    data = pr_labfor_50_10,
+    aes(x = YEAR, y = unemp_rate, color = "Puerto Rican"),
+    linewidth = 1.5
+  ) +
+  geom_point(
+    data = pr_labfor_50_10,
+    aes(x = YEAR, y = unemp_rate, color = "Puerto Rican"),
+    size = 3
+  ) +
+  geom_line(
+    data = us_labfor_50_10,
+    aes(x = YEAR, y = unemp_rate, color = "Total US"),
+    linewidth = 1.5
+  ) +
+  geom_point(
+    data = us_labfor_50_10,
+    aes(x = YEAR, y = unemp_rate, color = "Total US"),
+    size = 3
+  ) +
+  my_theme +
+  scale_color_manual(values = c(
+    "Puerto Rican" = "#d95f02",
+    "Total US" = "#7570b3"
+  )) +
+  labs(
+    title = "Historical Unemployment Rates",
+    subtitle = "Comparing Puerto Rican workers to the total US population (1950-2024)",
+    x = NULL, # Removed "Year" since the x-axis numbers make it obvious
+    y = "Unemployment Rate",
+    caption = "Source: IPUMS USA, Decennial Census and ACS (1950-2024)"
+  ) +
+  scale_y_continuous(labels = function(x) paste0(x, "%")) +
+  scale_x_continuous(breaks = seq(1950, 2024, by = 10)) +
+  # Overriding my_theme defaults to make text presentation-sized
+  theme(
+    plot.title = element_text(size = 18, face = "bold"),
+    plot.subtitle = element_text(size = 14, color = "grey30"),
+    axis.text = element_text(size = 12),
+    axis.title = element_text(size = 14),
+    legend.text = element_text(size = 14),
+    plot.caption = element_text(size = 10, color = "grey50", hjust = 1)
+  )
+
+ggsave(
+  filename = "figures/pr_unemp_presentation.png",
+  plot = p,
+  width = 10, # Width in inches (standard for 16:9 slides)
+  height = 5.625, # Height in inches (10 / (16/9) = 5.625)
+  dpi = 300, # 300 DPI ensures it won't look pixelated on a projector
+  bg = "white" # Ensures the background is solid white, not transparent
+)
+
+print(p)
+
+```
+
+## Population Not in Labor Force for Puerto Ricans and Total Population
+
+```{r Not in Labor Force Visualization}
+ggplot() +
+  geom_line(data = pr_labfor_50_10, aes(
+    x = YEAR, y = out_labfor_pct,
+    color = "PR"
+  )) +
+  geom_point(data = pr_labfor_50_10, aes(
+    x = YEAR, y = out_labfor_pct,
+    color = "PR"
+  ), size = 2) +
+  geom_line(data = us_labfor_50_10, aes(
+    x = YEAR, y = out_labfor_pct,
+    color = "US"
+  )) +
+  geom_point(data = us_labfor_50_10, aes(
+    x = YEAR, y = out_labfor_pct,
+    color = "US"
+  ), size = 2) +
+  my_theme +
+  scale_color_manual(values = c(
+    "PR" = "orange",
+    "US" = "blue"
+  )) +
+  labs(
+    title = "Percent of Populaiton Out of Workforce for Puerto Ricans and Total Population in US, 1950-2024",
+    x = "Year",
+    y = "Rate"
+  ) +
+  scale_x_continuous(breaks = seq(1950, 2020, by = 10))
+```
+
+## Not surprising, LFPR varies between male and females.
+
+```{r Calculations for LFPR for PR and US pop by sex}
+data_hist_sex <- data_hist %>%
+  filter(SEX != 9) %>%
+  mutate(sex_label = ifelse(SEX == 1, "Male", "Female"))
+
+pr_labfor_sex <- calculate_lfpr(data_hist_sex,
+  pr_filter = TRUE,
+  grp_vars = "sex_label"
+)
+us_labfor_sex <- calculate_lfpr(data_hist_sex,
+  pr_filter = FALSE,
+  grp_vars = "sex_label"
+)
+```
+
+## Visualize trends over years by sex
+
+### Distribution by sex
+
+```{r Distribution by sex}
+# Distribution of Puerto Ricans by sex
+pr_labfor_sex <- pr_labfor_sex |>
+  group_by(YEAR) |>
+  mutate(pct = (total_pop / sum(total_pop) * 100)) %>%
+  ungroup()
+
+ggplot(pr_labfor_sex, aes(x = YEAR, y = pct, fill = sex_label)) +
+  geom_col(position = "dodge") +
+  labs(
+    title = "PR Population Percentage by Sex Over Time",
+    x = "Year",
+    y = "Percentage (%)",
+    fill = "Sex"
+  ) +
+  my_theme +
+  scale_x_continuous(breaks = seq(1950, 2020, by = 10))
+
+# Distribution of US Population by sex
+us_labfor_sex <- us_labfor_sex |>
+  group_by(YEAR) |>
+  mutate(pct = (total_pop / sum(total_pop) * 100)) %>%
+  ungroup()
+
+ggplot(us_labfor_sex, aes(x = YEAR, y = pct, fill = sex_label)) +
+  geom_col(position = "dodge") +
+  labs(
+    title = "US Population Percentage by Sex Over Time",
+    x = "Year",
+    y = "Percentage (%)",
+    fill = "Sex"
+  ) +
+  my_theme +
+  scale_x_continuous(breaks = seq(1950, 2020, by = 10))
+```
+
+### Labor Force Participation Rate by Sex
+
+```{r LFPR by sex}
+# We can now visualize the Puerto Rican population in the labor force by sex since 1950.
+ggplot() +
+  geom_line(data = pr_labfor_sex, aes(
+    x = YEAR, y = labfor_rate,
+    color = sex_label
+  )) +
+  geom_point(data = pr_labfor_sex, aes(
+    x = YEAR, y = labfor_rate,
+    color = sex_label
+  )) +
+  my_theme +
+  labs(
+    title = "Trends in Labor Force Participation for Puerto Ricans by Sex 1950-2010",
+    x = "Year",
+    y = "Estimated Population"
+  ) +
+  scale_x_continuous(breaks = seq(1950, 2020, by = 10))
+
+# We can now visualize the total US population in the labor force by sex since 1950.
+ggplot() +
+  geom_line(data = us_labfor_sex, aes(
+    x = YEAR, y = labfor_rate,
+    color = sex_label
+  )) +
+  geom_point(data = us_labfor_sex, aes(
+    x = YEAR, y = labfor_rate,
+    color = sex_label
+  )) +
+  my_theme +
+  labs(
+    title = "Trends in Labor Force Participation for Total Population by Sex 1950-2024",
+    x = "Year",
+    y = "Estimated Population"
+  ) +
+  scale_x_continuous(breaks = seq(1950, 2020, by = 10))
+```
+
+## We can also analyze change by place of birth
+
+```{r Puerto Ricans in Labor Force by place of birth}
+pr_labfor_bpl <- calculate_lfpr(
+  data_hist %>%
+    mutate(plc_bth = case_when(
+      BPL <= 56 ~ "US",
+      BPL == 110 ~ "Puerto Rico",
+      TRUE ~ NA_character_
+    )) %>%
+    filter(!is.na(plc_bth)),
+  pr_filter = TRUE,
+  grp_vars = "plc_bth"
+)
+```
+
+# We can now visualize the Puerto Rican population in the labor force by Place of Birth.
+
+```{r LFPR for Puerto Ricans by Place of Birth}
+ggplot() +
+  geom_line(data = pr_labfor_bpl, aes(
+    x = YEAR, y = labfor_rate,
+    color = plc_bth
+  )) +
+  geom_point(data = pr_labfor_bpl, aes(
+    x = YEAR, y = labfor_rate,
+    color = plc_bth
+  )) +
+  my_theme +
+  labs(
+    title = "Trends in Labor Force Participation by Place of Birth 1950-2024",
+    x = "Year",
+    y = "Estimated Population"
+  ) +
+  scale_x_continuous(breaks = seq(1950, 2020, by = 10))
+```
+
+## LFPR by Age Groups
+
+```{r Age Goup Table}
+# Create a base table with the virtual grouping
+acs_with_age <- data_hist %>%
+  mutate(
+    age_grp = case_when(
+      AGE < 16 ~ "minor",
+      AGE >= 16 & AGE <= 24 ~ "16 to 24",
+      AGE >= 25 & AGE <= 54 ~ "25 to 54",
+      AGE >= 55 ~ "55+"
+    )
+  )
+```
+
+```{r LFPR Age Group calculation}
+# Calculate for PR in US by Age Group
+pr_age_lf_rate_us <- calculate_lfpr(acs_with_age, pr_filter = TRUE, grp_vars = "age_grp")
+
+age_lf_rate_us <- calculate_lfpr(acs_with_age,
+  pr_filter = FALSE,
+  grp_vars = "age_grp"
+)
+```
+
+## LFPR by Age Visualization
+
+#### Puerto Ricans
+
+```{r LFPR Age Group Visualization}
+ggplot(pr_age_lf_rate_us, aes(x = YEAR, y = labfor_rate, color = age_grp)) +
+  geom_line(linewidth = 1) +
+  geom_point() +
+  # important_years_lines +
+  my_theme +
+  labs(
+    title = "Labor Force Participation Rate for Puerto Ricans in the US by Age Group",
+    x = "Year",
+    y = "Participation Rate (%)"
+  ) +
+  scale_x_continuous(breaks = seq(1950, 2020, by = 10))
+```
+
+#### Total US Population
+
+```{r LFPR Age Group Visualization message=FALSE,warning=FALSE}
+ggplot(age_lf_rate_us, aes(x = YEAR, y = labfor_rate, color = age_grp)) +
+  geom_line(linewidth = 1) +
+  geom_point() +
+  # important_years_lines +
+  my_theme +
+  labs(
+    title = "Labor Force Participation Rate for US Population by Age Group",
+    x = "Year",
+    y = "Participation Rate (%)"
+  ) +
+  scale_x_continuous(breaks = seq(1950, 2020, by = 10))
+```
+
+## LFPR by Age Updated
+
+```{r Age Goup Table updated}
+# Create a base table with the virtual grouping
+acs_with_age_updated <- data_hist %>%
+  mutate(
+    age_grp = case_when(
+      AGE >= 16 & AGE <= 21 ~ "16-21",
+      AGE >= 22 & AGE <= 27 ~ "22-27",
+      AGE >= 28 & AGE <= 34 ~ "28-34",
+      AGE >= 35 & AGE <= 44 ~ "35-44",
+      AGE >= 45 & AGE <= 54 ~ "45-54",
+      AGE >= 55 & AGE <= 64 ~ "55-64",
+      AGE >= 65 ~ "65+"
+    )
+  )
+```
+
+```{r LFPR Age Group calculation}
+pr_age_lf_rate_updated <- calculate_lfpr(acs_with_age_updated,
+  pr_filter = TRUE, grp_vars = "age_grp"
+)
+age_lf_rate_updated <- calculate_lfpr(acs_with_age_updated,
+  pr_filter = FALSE, grp_vars = "age_grp"
+)
+```
+
+## LFPR by Age Visualization Updated
+
+#### Puerto Ricans Updated
+
+```{r LFPR Age Group Visualization}
+# 1. Define your highlight colors and sizes
+# Give "22-27" a bright color (like red or blue) and the rest a muted grey
+my_colors <- c(
+  "16-21" = "#a6cee3",
+  "22-27" = "#E3120B", # Bright Red for highlight
+  "28-34" = "#1f78b4",
+  "35-44" = "#b2df8a",
+  "45-54" = "#33a02c",
+  "55-64" = "#fb9a99",
+  "65+"   = "orange"
+)
+
+# Make the "22-27" line thicker than the rest
+my_lines <- c(
+  "16-21" = 0.75,
+  "22-27" = 1.5, # Thicker line for highlight
+  "28-34" = 0.75,
+  "35-44" = 0.75,
+  "45-54" = 0.75,
+  "55-64" = 0.75,
+  "65+"   = 0.75
+)
+
+# 2. Update your ggplot code
+# Note: we added `linewidth = age_grp` inside the aes() function
+ggplot(pr_age_lf_rate_updated, aes(x = YEAR, y = labfor_rate, color = age_grp, linewidth = age_grp)) +
+  geom_line() +
+  geom_point(aes(size = age_grp), show.legend = FALSE) + # Scale points to match
+  scale_color_manual(values = my_colors) +
+  scale_linewidth_manual(values = my_lines) +
+  scale_size_manual(values = my_lines * 2) + # Makes points slightly larger than lines
+  # important_years_lines +
+  my_theme +
+  labs(
+    title = "Labor Force Participation Rate for Puerto Ricans in the US by Age Group",
+    x = "Year",
+    y = "Participation Rate (%)",
+    color = "Age Group", # Cleans up legend titles
+    linewidth = "Age Group" # Ensures color and line width share the same legend
+  ) +
+  scale_x_continuous(breaks = seq(1950, 2020, by = 10))
+```
+
+#### Total US Population Updated
+
+```{r LFPR Age Group Visualization message=FALSE,warning=FALSE}
+ggplot(age_lf_rate_updated, aes(
+  x = YEAR, y = labfor_rate, color = age_grp,
+  linewidth = age_grp
+)) +
+  geom_line() +
+  geom_point(aes(size = age_grp), show.legend = FALSE) + # Scale points to match
+  scale_color_manual(values = my_colors) +
+  scale_linewidth_manual(values = my_lines) +
+  scale_size_manual(values = my_lines * 2) + # Makes points slightly larger than lines
+  # important_years_lines +
+  my_theme +
+  labs(
+    title = "Labor Force Participation Rate for Total Population in the US by Age Group",
+    x = "Year",
+    y = "Participation Rate (%)",
+    color = "Age Group", # Cleans up legend titles
+    linewidth = "Age Group" # Ensures color and line width share the same legend
+  ) +
+  scale_x_continuous(breaks = seq(1950, 2020, by = 10))
+```
+
+## Visualize percent of population out of the labor force by age
+
+```{r Percent Out of the Labor Force for Puerto Ricans, warning=FALSE,message=FALSE}
+# 2. Update your ggplot code
+# Note: we added `linewidth = age_grp` inside the aes() function
+ggplot(pr_age_lf_rate_updated, aes(x = YEAR, y = out_labfor_pct, color = age_grp, linewidth = age_grp)) +
+  geom_line() +
+  geom_point(aes(size = age_grp), show.legend = FALSE) + # Scale points to match
+  scale_color_manual(values = my_colors) +
+  scale_linewidth_manual(values = my_lines) +
+  scale_size_manual(values = my_lines * 2) + # Makes points slightly larger than lines
+  # important_years_lines +
+  my_theme +
+  labs(
+    title = "Percent of Puerto Ricans Out of the Labor Force in the US by Age Group",
+    x = "Year",
+    y = "Participation Rate (%)",
+    color = "Age Group", # Cleans up legend titles
+    linewidth = "Age Group" # Ensures color and line width share the same legend
+  ) +
+  scale_x_continuous(breaks = seq(1950, 2020, by = 10))
+```
+
+```{r Percent Out of the Labor Force for total pop, warning=FALSE,message=FALSE}
+# 2. Update your ggplot code
+# Note: we added `linewidth = age_grp` inside the aes() function
+ggplot(age_lf_rate_updated, aes(x = YEAR, y = out_labfor_pct, color = age_grp, linewidth = age_grp)) +
+  geom_line() +
+  geom_point(aes(size = age_grp), show.legend = FALSE) + # Scale points to match
+  scale_color_manual(values = my_colors) +
+  scale_linewidth_manual(values = my_lines) +
+  scale_size_manual(values = my_lines * 2) + # Makes points slightly larger than lines
+  # important_years_lines +
+  my_theme +
+  labs(
+    title = "Percent of PPopulation Out of the Labor Force in the US by Age Group",
+    x = "Year",
+    y = "Participation Rate (%)",
+    color = "Age Group", # Cleans up legend titles
+    linewidth = "Age Group" # Ensures color and line width share the same legend
+  ) +
+  scale_x_continuous(breaks = seq(1950, 2020, by = 10))
+```
+
+## Unemployment Rate for Puerto Ricans by Age Group
+
+```{r Unemployment Rate for Puerto Ricans, warning=FALSE,message=FALSE}
+ggplot(pr_age_lf_rate_updated, aes(x = YEAR, y = unemp_rate, color = age_grp, linewidth = age_grp)) +
+  geom_line() +
+  geom_point(aes(size = age_grp), show.legend = FALSE) + # Scale points to match
+  scale_color_manual(values = my_colors) +
+  scale_linewidth_manual(values = my_lines) +
+  scale_size_manual(values = my_lines * 2) + # Makes points slightly larger than lines
+  # important_years_lines +
+  my_theme +
+  labs(
+    title = "Unemployment Rate for Puerto Ricans in the US by Age Group",
+    x = "Year",
+    y = "Participation Rate (%)",
+    color = "Age Group", # Cleans up legend titles
+    linewidth = "Age Group" # Ensures color and line width share the same legend
+  ) +
+  scale_x_continuous(breaks = seq(1950, 2020, by = 10))
+```
+
+```{r Unemployment Rate for total pop, warning=FALSE,message=FALSE}
+ggplot(age_lf_rate_updated, aes(x = YEAR, y = unemp_rate, color = age_grp, linewidth = age_grp)) +
+  geom_line() +
+  geom_point(aes(size = age_grp), show.legend = FALSE) + # Scale points to match
+  scale_color_manual(values = my_colors) +
+  scale_linewidth_manual(values = my_lines) +
+  scale_size_manual(values = my_lines * 2) + # Makes points slightly larger than lines
+  # important_years_lines +
+  my_theme +
+  labs(
+    title = "Unemployment Rate for Total Population in the US by Age Group",
+    x = "Year",
+    y = "Participation Rate (%)",
+    color = "Age Group", # Cleans up legend titles
+    linewidth = "Age Group" # Ensures color and line width share the same legend
+  ) +
+  scale_x_continuous(breaks = seq(1950, 2020, by = 10))
+```
+
+## Education Attainment for Puerto Ricans
+
+```{r Education Attainment Group}
+# Create a base table with the virtual grouping
+acs_with_educ <- data_hist %>%
+  mutate(
+    educ_grp = case_when(
+      EDUC <= 5 ~ "Less than High School",
+      EDUC == 6 ~ "High School Diploma/GED",
+      EDUC %in% c(7, 8, 9) ~ "Some College / Associate's",
+      EDUC == 10 ~ "Bachelor's Degree",
+      EDUC >= 11 ~ "Master's Degree or Higher",
+      TRUE ~ "Unknown/NA"
+    )
+  ) %>%
+  filter(educ_grp != "Unknown/NA")
+```
+
+```{r Calculate Education Attainment}
+# Calculate for PR in US by Education Group
+pr_educ_lf_rate_us <- calculate_lfpr(acs_with_educ %>% filter(AGE >= 25), pr_filter = TRUE, grp_vars = "educ_grp")
+educ_lf_rate_us <- calculate_lfpr(acs_with_educ %>% filter(AGE >= 25), pr_filter = FALSE, grp_vars = "educ_grp")
+```
+
+### Visualize Educational Attainment per year
+
+```{r PR Educational Attainment Viz}
+ggplot(pr_educ_lf_rate_us, aes(x = YEAR, y = educ_attainment_pct, color = educ_grp)) +
+  geom_line(linewidth = 1) +
+  geom_point() +
+  # important_years_lines +
+  my_theme +
+  labs(
+    title = "Educational Attainment for Puerto Ricans in the US",
+    x = "Year",
+    y = "Percentage of Population (%)"
+  ) +
+  scale_x_continuous(breaks = seq(1950, 2020, by = 10))
+```
+
+```{r Total Pop Educaitonal Attainment Viz}
+ggplot(educ_lf_rate_us, aes(x = YEAR, y = educ_attainment_pct, color = educ_grp)) +
+  geom_line(linewidth = 1) +
+  geom_point() +
+  # important_years_lines +
+  my_theme +
+  labs(
+    title = "Educational Attainment for Total Population in the US",
+    x = "Year",
+    y = "Percentage of Population (%)"
+  ) +
+  scale_x_continuous(breaks = seq(1950, 2020, by = 10))
+```
+
+### Puerto Ricans
+
+```{r LFPR by Educaitonal Attainment PR}
+ggplot(pr_educ_lf_rate_us, aes(x = YEAR, y = labfor_rate, color = educ_grp)) +
+  geom_line(linewidth = 1) + # Updated size to linewidth
+  geom_point() +
+  # important_years_lines +
+  my_theme +
+  labs(
+    title = "Labor Force Participation Rate for Puerto Ricans in the US by Education",
+    x = "Year",
+    y = "Participation Rate (%)"
+  ) +
+  scale_x_continuous(breaks = seq(1950, 2020, by = 10))
+```
+
+### Total US Population
+
+```{r LFPR by Educaitonal Attainment Total Pop}
+ggplot(educ_lf_rate_us, aes(x = YEAR, y = labfor_rate, color = educ_grp)) +
+  geom_line(linewidth = 1) + # Updated size to linewidth
+  geom_point() +
+  # important_years_lines +
+  my_theme +
+  labs(
+    title = "Labor Force Participation Rate for US Population by Education",
+    x = "Year",
+    y = "Participation Rate (%)"
+  ) +
+  scale_x_continuous(breaks = seq(1950, 2020, by = 10))
+```
+
+### Employment Populaiton Ration by Educational Attainment
+
+```{r EPR by Educaitonal Attainment PR}
+ggplot(pr_educ_lf_rate_us, aes(x = YEAR, y = etop_ratio, color = educ_grp)) +
+  geom_line(linewidth = 1) + # Updated size to linewidth
+  geom_point() +
+  # important_years_lines +
+  my_theme +
+  labs(
+    title = "Employment to Population Ratio for Puerto Ricans in the US by Education",
+    x = "Year",
+    y = "Participation Rate (%)"
+  ) +
+  scale_x_continuous(breaks = seq(1950, 2020, by = 10))
+```
+
+```{r EPR by Educaitonal Attainment Total Pop}
+ggplot(educ_lf_rate_us, aes(x = YEAR, y = etop_ratio, color = educ_grp)) +
+  geom_line(linewidth = 1) + # Updated size to linewidth
+  geom_point() +
+  # important_years_lines +
+  my_theme +
+  labs(
+    title = "Labor Force Participation Rate for US Population by Education",
+    x = "Year",
+    y = "Participation Rate (%)"
+  ) +
+  scale_x_continuous(breaks = seq(1950, 2020, by = 10))
+```
+
+### Unemployment Rate by Educational Attainment
+
+```{r Unemployment by Educaitonal Attainment PR}
+ggplot(pr_educ_lf_rate_us, aes(x = YEAR, y = unemp_rate, color = educ_grp)) +
+  geom_line(linewidth = 1) + # Updated size to linewidth
+  geom_point() +
+  # important_years_lines +
+  my_theme +
+  labs(
+    title = "Employment to Population Ratio for Puerto Ricans in the US by Education",
+    x = "Year",
+    y = "Participation Rate (%)"
+  ) +
+  scale_x_continuous(breaks = seq(1950, 2020, by = 10))
+```
+
+```{r EPR by Educaitonal Attainment Total Pop}
+ggplot(educ_lf_rate_us, aes(x = YEAR, y = unemp_rate, color = educ_grp)) +
+  geom_line(linewidth = 1) + # Updated size to linewidth
+  geom_point() +
+  # important_years_lines +
+  my_theme +
+  labs(
+    title = "Labor Force Participation Rate for US Population by Education",
+    x = "Year",
+    y = "Participation Rate (%)"
+  ) +
+  scale_x_continuous(breaks = seq(1950, 2010, by = 10))
+```
+
+## LFPR by Education by Sex
+
+```{r LFPR by EDUC by SEX}
+# Calculate for PR in US by Education Group by Sex
+# Fixed: Changed AGE >= 16 to AGE >= 25
+pr_educ_lf_rate_sex <- acs_with_educ %>%
+  filter(
+    HISPAN == 2 | HISPAND == 200 | ANCESTR1 == 261,
+    AGE >= 25,
+    EMPSTAT != 0, !(EMPSTATD %in% 13:15), GQ != 3,
+    SEX != 9
+  ) %>%
+  group_by(YEAR, SEX, educ_grp) %>%
+  summarise(
+    total_pop = sum(ifelse(EMPSTAT %in% c(1, 2, 3), PERWT, 0), na.rm = TRUE),
+    in_labfor = sum(ifelse(EMPSTAT %in% c(1, 2), PERWT, 0), na.rm = TRUE),
+    out_labfor = sum(ifelse(EMPSTAT == 3, PERWT, 0), na.rm = TRUE),
+    unemp = sum(ifelse(EMPSTAT == 2, PERWT, 0), na.rm = TRUE),
+    .groups = "drop_last"
+  ) %>%
+  mutate(
+    sex = case_when(
+      SEX == 1 ~ "Male",
+      SEX == 2 ~ "Female"
+    ),
+    labfor_rate = (in_labfor / total_pop) * 100,
+    out_labfor_pct = (out_labfor / total_pop) * 100,
+    unemp_rate = (unemp / in_labfor) * 100,
+    etop_ratio = (in_labfor - unemp) / total_pop * 100,
+    educ_attainment_pct = (total_pop / sum(total_pop)) * 100
+  ) %>%
+  ungroup() %>%
+  collect()
+
+# Calculate for Total US Population by Education Group by Sex
+# Fixed: Added missing AGE >= 25 filter
+educ_lf_rate_sex <- acs_with_educ %>%
+  filter(AGE >= 25, EMPSTAT != 0, !(EMPSTATD %in% 13:15), GQ != 3, SEX != 9) %>%
+  group_by(YEAR, SEX, educ_grp) %>%
+  summarise(
+    total_pop = sum(ifelse(EMPSTAT %in% c(1, 2, 3), PERWT, 0), na.rm = TRUE),
+    in_labfor = sum(ifelse(EMPSTAT %in% c(1, 2), PERWT, 0), na.rm = TRUE),
+    out_labfor = sum(ifelse(EMPSTAT == 3, PERWT, 0), na.rm = TRUE),
+    unemp = sum(ifelse(EMPSTAT == 2, PERWT, 0), na.rm = TRUE),
+    .groups = "drop_last"
+  ) %>%
+  mutate(
+    sex = case_when(
+      SEX == 1 ~ "Male",
+      SEX == 2 ~ "Female"
+    ),
+    labfor_rate = (in_labfor / total_pop) * 100,
+    out_labfor_pct = (out_labfor / total_pop) * 100,
+    unemp_rate = (unemp / in_labfor) * 100,
+    etop_ratio = (in_labfor - unemp) / total_pop * 100,
+    educ_attainment_pct = (total_pop / sum(total_pop)) * 100
+  ) %>%
+  ungroup() %>%
+  collect()
+```
+
+```{r Education Attainment by sex for PR}
+ggplot(pr_educ_lf_rate_sex, aes(
+  x = YEAR, y = educ_attainment_pct,
+  color = educ_grp
+)) +
+  geom_line(linewidth = 1) +
+  geom_point() +
+  facet_wrap(~sex) +
+  my_theme +
+  labs(
+    title = "Educational Attainment for Puerto Ricans in the US",
+    x = "Year",
+    y = "Percentage of Population (%)"
+  )
+```
+
+```{r Education Attainment by sex for total pop}
+ggplot(educ_lf_rate_sex, aes(x = YEAR, y = educ_attainment_pct, color = educ_grp)) +
+  geom_line(linewidth = 1) +
+  geom_point() +
+  facet_wrap(~sex) +
+  my_theme +
+  labs(
+    title = "Educational Attainment for Total Populaiton in the US",
+    x = "Year",
+    y = "Percentage of Population (%)"
+  )
+```
+
+### LFPR by Education Visualization by Sex
+
+#### Puerto Ricans by Sex
+
+```{r LFPR by Sex by EDUC for PR viz}
+ggplot(pr_educ_lf_rate_sex, aes(x = YEAR, y = labfor_rate, color = educ_grp)) +
+  geom_line(linewidth = 1) + # Updated size to linewidth
+  geom_point() +
+  facet_wrap(~sex) +
+  my_theme +
+  labs(
+    title = "Labor Force Participation Rate for Puerto Ricans by Education & Sex",
+    x = "Year",
+    y = "Participation Rate (%)"
+  )
+```
+
+#### Total US Population by Sex
+
+```{r LFPR by Sex by EDUC for total pop viz}
+ggplot(educ_lf_rate_sex, aes(x = YEAR, y = labfor_rate, color = educ_grp)) +
+  geom_line(linewidth = 1) + # Updated size to linewidth
+  geom_point() +
+  facet_wrap(~sex) +
+  my_theme +
+  labs(
+    title = "Labor Force Participation Rate for US Population by Education & Sex",
+    x = "Year",
+    y = "Participation Rate (%)"
+  )
+```
+
+## Language Proficiency and LFPR
+
+```{r Create Language Group}
+# Create a base table with the virtual grouping
+acs_with_eng <- data_hist %>%
+  mutate(
+    eng_grp = case_when(
+      SPEAKENG %in% c(1, 2) ~ "Limited English (Not well / Not at all)",
+      SPEAKENG == 3 ~ "Speaks English Well",
+      SPEAKENG == 4 ~ "Speaks English Very Well",
+      SPEAKENG == 5 ~ "Speaks Only English",
+      TRUE ~ "Unknown/NA"
+    )
+  ) %>%
+  filter(eng_grp != "Unknown/NA")
+```
+
+```{r Calculate English Proficiency}
+# Calculate for PR in US by English Proficiency
+pr_eng_lf_rate_us <- calculate_lfpr(acs_with_eng, pr_filter = TRUE, grp_vars = "eng_grp") %>%
+  group_by(YEAR) %>%
+  mutate(eng_pct = total_pop / sum(total_pop) * 100) %>%
+  ungroup()
+```
+
+### Visualize English Proficiency
+
+```{r English Proficiency Viz}
+ggplot(pr_eng_lf_rate_us, aes(x = YEAR, y = labfor_rate, color = eng_grp)) +
+  geom_line(linewidth = 1) +
+  geom_point() +
+  my_theme +
+  labs(
+    title = "Labor Force Participation Rate for Puerto Ricans in the US by English Proficiency",
+    x = "Year",
+    y = "Participation Rate (%)"
+  )
+```
+
+## Industry and Occupation Analysis
+
+### Initial data prep
+
+```{r Mapping Industry and Occupaiton Categories}
+mapped_workers_db <- data_hist %>%
+  # Apply base employment filter, correcting the missing GQ != 3
+  filter(AGE >= 16, EMPSTAT == 1, GQ != 3) %>%
+  mutate(
+    # Create a boolean flag for PR status to split the data later
+    is_pr = ifelse(
+      HISPAN %in% c(2) |
+        HISPAND %in% c(200) | ANCESTR1 %in% c(261),
+      TRUE,
+      FALSE
+    ),
+    
+    # Map Industries
+    ind_sector = case_when(
+      IND1990 >= 10 & IND1990 <= 32 ~ "Ag, Forestry, Fish & Hunt",
+      IND1990 >= 40 & IND1990 <= 50 ~ "Mining, Quarry, Oil/Gas",
+      IND1990 >= 450 & IND1990 <= 472 ~ "Utilities",
+      IND1990 == 60 ~ "Construction",
+      IND1990 >= 100 & IND1990 <= 392 ~ "Manufacturing",
+      IND1990 >= 500 & IND1990 <= 571 ~ "Wholesale Trade",
+      
+      # Excludes 641 (Eating/Drinking Places) to align with modern NAICS grouping
+      (IND1990 >= 580 &
+         IND1990 <= 691) & IND1990 != 641 ~ "Retail Trade",
+      IND1990 >= 400 &
+        IND1990 <= 432 ~ "Transport & Warehousing",
+      IND1990 >= 440 &
+        IND1990 <= 442 ~ "Information",
+      # Maps 1990 Communications here
+      IND1990 >= 700 & IND1990 <= 711 ~ "Finance & Insurance",
+      IND1990 == 712 ~ "Real Estate & Leasing",
+      
+      # Merges 1990 Engineering/Architecture/Accounting with related professional codes
+      IND1990 == 841 |
+        (IND1990 >= 881 & IND1990 <= 893) ~ "Prof, Sci, & Tech Svcs",
+      IND1990 >= 721 &
+        IND1990 <= 741 ~ "Admin, Support, & Waste Mgmt",
+      IND1990 >= 842 & IND1990 <= 860 ~ "Educational Svcs",
+      (IND1990 >= 812 &
+         IND1990 <= 840) |
+        (IND1990 >= 861 & IND1990 <= 873) ~ "Health & Social Asst",
+      IND1990 >= 800 &
+        IND1990 <= 810 ~ "Arts, Entertain, & Rec",
+      
+      # Combines 1990 Eating/Drinking places (641) with Hotels/Lodging (762, 770)
+      IND1990 %in% c(641, 762, 770) ~ "Accom & Food Svcs",
+      IND1990 %in% c(750, 751, 752, 761, 771, 772, 781, 791) ~ "Other Svcs (excl. Pub Admin)",
+      IND1990 >= 900 & IND1990 <= 932 ~ "Public Admin",
+      IND1990 >= 940 & IND1990 <= 960 ~ "Military",
+      TRUE ~ "Unclassified / NILF"
+    ),
+    
+    # Map Occupations
+    occ_cat1 = case_when(
+      (OCC2010 >= 10 &
+         OCC2010 <= 960) |
+        (OCC2010 >= 2600 &
+           OCC2010 <= 2960) ~ "Mgmt, Bus, Entertain & Media",
+      OCC2010 >= 1000 & OCC2010 <= 1965 ~ "STEM",
+      (OCC2010 >= 2000 &
+         OCC2010 <= 2550) |
+        (OCC2010 >= 4300 &
+           OCC2010 <= 4650) ~ "Educ, Comm & Social Svcs",
+      OCC2010 >= 3000 & OCC2010 <= 3655 ~ "Health & Medical",
+      (OCC2010 >= 3700 &
+         OCC2010 <= 3955) |
+        (OCC2010 >= 9000 &
+           OCC2010 <= 9420) ~ "Law Enf & Transport",
+      OCC2010 >= 4000 &
+        OCC2010 <= 4250 ~ "Food, Maint, Bldg & Grounds",
+      OCC2010 >= 4700 & OCC2010 <= 4965 ~ "Sales & Related",
+      OCC2010 >= 5000 &
+        OCC2010 <= 5940 ~ "Admin & Office Support",
+      OCC2010 >= 6005 &
+        OCC2010 <= 7630 ~ "Nat Res, Const & Maint",
+      (OCC2010 >= 7700 &
+         OCC2010 <= 8965) |
+        (OCC2010 >= 9500 &
+           OCC2010 <= 9750) ~ "Prod & Material Moving",
+      OCC2010 >= 9800 & OCC2010 <= 9830 ~ "Military",
+      OCC2010 %in% c(9920, 9999) ~ "Unclassified",
+      TRUE ~ "Unclassified"
+    )
+  )
+```
+
+```{r Industry Data preparation}
+ind_sector_data <- mapped_workers_db %>%
+  filter(is_pr == TRUE) %>%
+  group_by(YEAR, ind_sector) %>%
+  summarise(workers = sum(PERWT, na.rm = TRUE), .groups = "drop") %>%
+  collect() %>%
+  group_by(YEAR) %>%
+  mutate(pct_workers = workers / sum(workers) * 100) %>%
+  ungroup()
+
+# Total US Industry Data
+ind_sector_data_us <- mapped_workers_db %>%
+  group_by(YEAR, ind_sector) %>%
+  summarise(workers = sum(PERWT, na.rm = TRUE), .groups = "drop") %>%
+  collect() %>%
+  group_by(YEAR) %>%
+  mutate(pct_workers = workers / sum(workers) * 100) %>%
+  ungroup()
+```
+
+### Visualize Puerto Rican workers by industry
+
+```{r PR workers by Industry}
+# Using facet_wrap to clearly view trends across 20+ sectors without overlap
+ggplot(ind_sector_data, aes(x = YEAR, y = workers, color = ind_sector)) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 1.5) +
+  facet_wrap(~ind_sector, ncol = 4) +
+  my_theme +
+  theme(
+    legend.position = "none",
+    strip.text = element_text(size = 8, face = "bold") # Shrink facet titles slightly to fit
+  ) +
+  labs(
+    title = "Total PR Workers by Industry Sector",
+    subtitle = "Estimated workers over time. Note: Y-axis scales vary by panel to show specific trends.",
+    x = "Year",
+    y = "Total Workers"
+  ) +
+  scale_x_continuous(breaks = seq(1950, 2020, by = 10))
+```
+
+### Visualize Total workers by Industry
+
+```{r US workers by Industry}
+# Using facet_wrap to clearly view trends across 20+ sectors without overlap
+ggplot(ind_sector_data_us, aes(x = YEAR, y = workers, color = ind_sector)) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 1.5) +
+  facet_wrap(~ind_sector, ncol = 4) +
+  my_theme +
+  theme(
+    legend.position = "none",
+    strip.text = element_text(size = 8, face = "bold") # Shrink facet titles slightly to fit
+  ) +
+  labs(
+    title = "Total US Workers by Industry Sector",
+    subtitle = "Estimated workers over time. Note: Y-axis scales vary by panel to show specific trends.",
+    x = "Year",
+    y = "Total Workers"
+  ) +
+  scale_x_continuous(breaks = seq(1950, 2020, by = 10))
+```
+
+## Percentage point difference
+
+```{r PR percent poing change calc}
+# Calculate the percentage point shift from the earliest to latest available year
+ind_change <- ind_sector_data %>%
+  group_by(ind_sector) %>%
+  arrange(YEAR) %>%
+  summarise(
+    first_year = first(YEAR),
+    last_year = last(YEAR),
+    first_share = first(pct_workers),
+    last_share = last(pct_workers),
+    pp_change = last_share - first_share,
+    .groups = "drop"
+  ) %>%
+  arrange(desc(pp_change))
+
+# Display top growing and declining sectors
+print(head(ind_change, 5))
+print(tail(ind_change, 5))
+```
+
+```{r Total Pop percent poing change calc}
+# Calculate the percentage point shift from the earliest to latest available year
+ind_change_us <- ind_sector_data_us %>%
+  group_by(ind_sector) %>%
+  arrange(YEAR) %>%
+  summarise(
+    first_year = first(YEAR),
+    last_year = last(YEAR),
+    first_share = first(pct_workers),
+    last_share = last(pct_workers),
+    pp_change = last_share - first_share,
+    .groups = "drop"
+  ) %>%
+  arrange(desc(pp_change))
+
+# Display top growing and declining sectors
+print(head(ind_change_us, 5))
+print(tail(ind_change_us, 5))
+```
+
+### Workforce Share by Industry in 1950
+
+```{r PR Workforce Share by Industry viz}
+ggplot(ind_change, aes(x = first_share, y = reorder(ind_sector, first_share))) +
+  # Using a single professional color instead of a distracting rainbow
+  geom_col(fill = "#2c3e50", alpha = 0.9) +
+  my_theme +
+  # Remove the redundant legend
+  theme(legend.position = "none") +
+  # Format the x-axis to show percentage signs (assuming first_share is 0-100)
+  scale_x_continuous(labels = function(x) paste0(x, "%")) +
+  labs(
+    title = "Industry Share among Puerto Rican Workers, 1950",
+    subtitle = "Workforce Share by Industry",
+    x = "Share of Workforce",
+    y = NULL # Removes the unnecessary "ind_sector" axis title
+  )
+```
+
+### Workforce Share by Industry 1950 to 2010
+
+```{r Puerto Rican workforce share by industry}
+ggplot(
+  ind_sector_data %>%
+    filter(
+      !ind_sector %in% c("21. Unclassified / NILF", "20. Military")
+    ),
+  aes(x = pct_workers, y = ind_sector, fill = ind_sector)
+) +
+  # Changed from line/point to a bar chart
+  geom_col(fill = "#2c3e50", alpha = 0.9) +
+
+  # Facet by YEAR instead of industry
+  facet_wrap(~YEAR, ncol = 4) +
+  my_theme +
+  theme(
+    # Keep legend hidden since the Y-axis already labels the industries
+    legend.position = "none",
+    strip.text = element_text(size = 10, face = "bold")
+  ) +
+
+  # X-axis is now the percentage since we flipped the orientation
+  scale_x_continuous(
+    labels = function(x) {
+      paste0(x, "%")
+    }
+  ) +
+  labs(
+    title = "Puerto Rican Workforce Share by Industry",
+    subtitle = "Percentage of total workforce across decennial years",
+    x = "Share of Workforce (%)",
+    y = NULL # Hides the redundant "ind_sector" axis title
+  )
+
+```
+
+```{r}
+# 1. Prepare the data specifically for plotting
+plot_data <- ind_sector_data %>%
+  filter(!ind_sector %in% c("Unclassified / NILF", "Military")) %>%
+  mutate(
+    
+    # Reorder the sectors based on pct_workers (so the largest are at the top)
+    ind_sector = fct_reorder(ind_sector, pct_workers),
+    
+    # Create a highlight flag for your specific story 
+    # (Change "Manufacturing" to whatever industry you are focusing on)
+    is_highlight = if_else(ind_sector == "Manufacturing", "Highlight", "Normal")
+  )
+
+# 2. Build the plot
+ggplot(plot_data, aes(x = pct_workers, y = ind_sector, fill = is_highlight)) +
+  geom_col(alpha = 0.9) +
+  
+  # Add direct labels to the end of the bars
+  geom_text(
+    aes(label = paste0(round(pct_workers, 1), "%")), 
+    hjust = -0.2, # Pushes text slightly outside the bar
+    size = 3.5, 
+    color = "gray20"
+  ) +
+
+  facet_wrap(~YEAR, ncol = 4) +
+  
+  # Custom colors: Hero color for the highlight, muted gray for the rest
+  scale_fill_manual(values = c("Highlight" = "#d35400", "Normal" = "#bdc3c7")) +
+  
+  # Expand the X-axis slightly so the text labels don't get cut off
+  scale_x_continuous(expand = expansion(mult = c(0, 0.15))) +
+  
+  my_theme +
+  theme(
+    legend.position = "none",
+    strip.text = element_text(size = 12, face = "bold"),
+    axis.text.y = element_text(size = 10, face = "bold"),
+    
+    # Remove the X-axis text and gridlines since we have direct data labels
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank(),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank()
+  ) +
+  labs(
+    title = "The Shift Away from Manufacturing", # Use an active, takeaway-driven title
+    subtitle = "Puerto Rican workforce share by industry across decennial years",
+    caption = "Source: IPUMS USA, Decennial Census and ACS (1950-2024)",
+    x = NULL,
+    y = NULL 
+  )
+```
+
+```{r}
+# 1. Prepare the data and create a grouping variable for colors
+plot_data <- ind_sector_data %>%
+  filter(!ind_sector %in% c("Unclassified / NILF", "Military")) %>%
+  mutate(
+    # Assign specific categories for the highlight lines, and lump the rest into "Other"
+    highlight_group = case_when(
+      ind_sector == "Manufacturing" ~ "Manufacturing",
+      ind_sector == "Health & Social Asst" ~ "Healthcare",
+      ind_sector == "Educational Svcs" ~ "Education",
+      ind_sector == "Retail Trade" ~ "Retail",
+      TRUE ~ "Other"
+    )
+  )
+
+# 2. Extract just the final year's data for the highlighted industries to make direct labels
+# (This prevents us from needing a confusing color legend)
+final_year_data <- plot_data %>%
+  filter(YEAR == max(YEAR), highlight_group != "Other")
+
+# 3. Build the plot
+p <- ggplot(plot_data,
+            aes(
+              x = YEAR,
+              y = pct_workers,
+              group = ind_sector,
+              color = highlight_group
+            )) +
+  
+  # Draw the "Other" lines first so they sit in the background
+  geom_line(
+    data = filter(plot_data, highlight_group == "Other"),
+    alpha = 0.4,
+    linewidth = 0.8
+  ) +
+  
+  # Draw the highlighted lines on top so they pop out
+  geom_line(data = filter(plot_data, highlight_group != "Other"),
+            linewidth = 1.5) +
+  
+  # Add points only to the highlighted lines to emphasize the data points
+  geom_point(data = filter(plot_data, highlight_group != "Other"),
+             size = 3) +
+  
+  # Add direct labels to the end of the highlighted lines
+  ggrepel::geom_text_repel(
+    data = final_year_data,
+    aes(label = ind_sector),
+    hjust = -0.1,
+    # Push text slightly to the right of the final point
+    fontface = "bold",
+    size = 4
+  ) +
+  
+  # Custom colors: Bright colors for highlights, muted gray for the background
+  scale_color_manual(
+    values = c(
+      "Manufacturing" = "#d35400",
+      # Deep Orange
+      "Healthcare"    = "#2980b9",
+      # Strong Blue
+      "Education"     = "#27ae60",
+      # Green
+      "Retail"        = "#8e44ad",
+      # Purple
+      "Other"         = "#bdc3c7"   # Muted Gray
+    )
+  ) +
+  
+  # Expand the X-axis on the right side so the text labels don't get cut off
+  scale_x_continuous(
+    breaks = unique(plot_data$YEAR),
+    # Ensure every decade is labeled on the axis
+    expand = expansion(mult = c(0.05, 0.25))
+  ) +
+  
+  # Format Y-axis as percentages
+  scale_y_continuous(
+    labels = function(x)
+      paste0(x, "%")
+  ) +
+  
+  my_theme +
+  theme(
+    legend.position = "none",
+    # Hide legend because we directly labeled the lines
+    axis.text = element_text(size = 11, face = "bold"),
+    panel.grid.minor = element_blank() # Remove minor gridlines to reduce clutter
+  ) +
+  labs(
+    title = "Share of the Puerto Rican workforce",
+    subtitle = "1950 to 2024",
+    caption = "Source: IPUMS USA, Decennial Census and ACS (1950-2024)",
+    x = NULL,
+    # The years are obvious, no need for an axis title
+    y = "Share of Workforce (%)"
+  ) 
+
+ggsave(
+  filename = "figures/pr_wrk_share_presentation.png",
+  plot = p,
+  width = 10,
+  # Width in inches (standard for 16:9 slides)
+  height = 5.625,
+  # Height in inches (10 / (16/9) = 5.625)
+  dpi = 300,
+  # 300 DPI ensures it won't look pixelated on a projector
+  bg = "white" # Ensures the background is solid white, not transparent
+)
+
+print(p)
+```
+
+```{r PR percent poing change viz}
+ggplot(ind_change, aes(x = reorder(ind_sector, pp_change), y = pp_change, fill = pp_change > 0)) +
+  geom_col() +
+  coord_flip() +
+  my_theme +
+  theme(legend.position = "none") +
+  scale_fill_manual(values = c("FALSE" = "#d95f02", "TRUE" = "#1b9e77")) +
+  labs(
+    title = "Change in Industry Composition among Puerto Rican Workers",
+    subtitle = "Percentage-point change in workforce share between first and last year",
+    x = NULL,
+    y = "Percentage Point Change"
+  )
+```
+
+```{r Total pop PP viz}
+ggplot(ind_change_us, aes(x = reorder(ind_sector, pp_change), y = pp_change, fill = pp_change > 0)) +
+  geom_col() +
+  coord_flip() +
+  my_theme +
+  theme(legend.position = "none") +
+  scale_fill_manual(values = c("FALSE" = "#d95f02", "TRUE" = "#1b9e77")) +
+  labs(
+    title = "Change in Industry Composition among Total Workers",
+    subtitle = "Percentage-point change in workforce share between first and last year",
+    x = NULL,
+    y = "Percentage Point Change"
+  )
+```
+
+## Calculate index
+
+```{r PR growth index calc}
+# Calculate an index to see relative growth within each sector (Baseline Year = 100)
+ind_index <- ind_sector_data %>%
+  filter(ind_sector != "20. Military", ind_sector != "21. Unclassified / Not in Labor Force") %>%
+  group_by(ind_sector) %>%
+  arrange(YEAR) %>%
+  mutate(
+    index = workers / first(workers) * 100
+  ) %>%
+  ungroup()
+```
+
+```{r US Pop index calc}
+# Calculate an index to see relative growth within each sector (Baseline Year = 100)
+ind_index_us <- ind_sector_data_us %>%
+  filter(ind_sector != "20. Military", ind_sector != "21. Unclassified / Not in Labor Force") %>%
+  group_by(ind_sector) %>%
+  arrange(YEAR) %>%
+  mutate(
+    index = workers / first(workers) * 100
+  ) %>%
+  ungroup()
+```
+
+```{r PR growth index plot}
+ggplot(ind_index, aes(x = YEAR, y = index, color = ind_sector)) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 1) +
+  facet_wrap(~ind_sector, ncol = 4) +
+  my_theme +
+  theme(
+    legend.position = "none",
+    strip.text = element_text(size = 8, face = "bold")
+  ) +
+  # Adding a horizontal baseline reference line at index = 100
+  geom_hline(yintercept = 100, linetype = "dashed", color = "black", alpha = 0.5) +
+  labs(
+    title = "Industry Employment Growth Index",
+    subtitle = "First year = 100. Dashed line represents baseline.",
+    x = "Year",
+    y = "Index"
+  ) +
+  scale_x_continuous(breaks = seq(1950, 2020, by = 10))
+```
+
+```{r Total growth index pop}
+ggplot(ind_index_us, aes(x = YEAR, y = index, color = ind_sector)) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 1) +
+  facet_wrap(~ind_sector, ncol = 4) +
+  my_theme +
+  theme(
+    legend.position = "none",
+    strip.text = element_text(size = 8, face = "bold")
+  ) +
+  # Adding a horizontal baseline reference line at index = 100
+  geom_hline(yintercept = 100, linetype = "dashed", color = "black", alpha = 0.5) +
+  labs(
+    title = "Industry Employment Growth Index",
+    subtitle = "First year = 100. Dashed line represents baseline.",
+    x = "Year",
+    y = "Index"
+  ) +
+  scale_x_continuous(breaks = seq(1950, 2020, by = 10))
+```
+
+### Over/Under Representation Index
+
+```{r Over/under representation Index}
+# Calculate the Over/Under Representation Index
+# > 1.0 means PR workers are overrepresented in this industry compared to the US
+# < 1.0 means PR workers are underrepresented
+
+representation_data <- ind_sector_data %>%
+  # Select only the columns we need and rename the percentage column for clarity
+  select(YEAR, ind_sector, pr_pct = pct_workers) %>%
+  inner_join(
+    # Join with the US data, also isolating and renaming its percentage column
+    ind_sector_data_us %>% select(YEAR, ind_sector, us_pct = pct_workers),
+    by = c("YEAR", "ind_sector")
+  ) %>%
+  mutate(
+    rep_index = pr_pct / us_pct
+  ) %>%
+  # Filter out unclassified and military (if desired) for cleaner plotting
+  filter(
+    ind_sector != "21. Unclassified / Not in Labor Force",
+    ind_sector != "20. Military"
+  )
+```
+
+```{r Over/under representation Index plot}
+ggplot(representation_data, aes(x = YEAR, y = rep_index, color = ind_sector)) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 1.5) +
+  # Use free_y so small index variations in smaller industries are visible
+  facet_wrap(~ind_sector, ncol = 4, scales = "free_y") +
+
+  # The crucial baseline: 1.0 means PR participation exactly matches US participation
+  geom_hline(yintercept = 1, linetype = "dashed", color = "black", linewidth = 0.8) +
+  my_theme +
+  theme(
+    legend.position = "none",
+    strip.text = element_text(size = 8, face = "bold")
+  ) +
+  labs(
+    title = "Puerto Rican Worker Representation Index by Industry",
+    subtitle = "Index > 1.0 = Overrepresented vs. US Average | Index < 1.0 = Underrepresented",
+    x = "Year",
+    y = "Representation Index (PR Share / US Share)"
+  ) +
+  scale_x_continuous(breaks = seq(1950, 2020, by = 10))
+```
+
+### Over/Under Representation Index Adjusted for Small Denominator
+
+```{r Over/under representation Index Adjusted}
+# Calculate the Controlled Over/Under Representation Index
+# Using the total US workforce as the baseline
+representation_data_national_controlled <- ind_sector_data %>%
+  select(YEAR, ind_sector, pr_pct = pct_workers) %>%
+  inner_join(
+    # Reverting back to the national baseline data
+    ind_sector_data_us %>% select(YEAR, ind_sector, us_pct = pct_workers),
+    by = c("YEAR", "ind_sector")
+  ) %>%
+  # <--- Small Denominator Control: US Baseline must be at least 1% of the workforce
+  filter(us_pct >= 1.0) %>%
+  mutate(
+    rep_index = pr_pct / us_pct
+  ) %>%
+  # Filter out unclassified and military sectors
+  filter(
+    ind_sector != "21. Unclassified / Not in Labor Force",
+    ind_sector != "20. Military"
+  )
+```
+
+```{r Over/under representation Index Adjusted Viz}
+ggplot(representation_data_national_controlled, aes(x = YEAR, y = rep_index, color = ind_sector)) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 1.5) +
+  facet_wrap(~ind_sector, ncol = 4, scales = "free_y") +
+
+  # The 1.0 baseline indicates exact parity with the total US workforce
+  geom_hline(yintercept = 1, linetype = "dashed", color = "black", linewidth = 0.8) +
+  my_theme +
+  theme(
+    legend.position = "none",
+    strip.text = element_text(size = 8, face = "bold")
+  ) +
+  labs(
+    title = "Puerto Rican Worker Representation Index by Industry",
+    subtitle = "Compared to National Baseline | Excludes industries < 1% of total US workforce",
+    x = "Year",
+    y = "Representation Index (PR Share / Total US Share)"
+  )
+```
+
+## Industry Analysis by Sex
+
+### Calculate Industry metrics by Sex
+
+```{r Calculate Industry by Sex}
+# Calculate Puerto Rican workers by Industry and Sex
+pr_ind_sex <- mapped_workers_db %>%
+  filter(is_pr == TRUE, SEX != 9) %>%
+  mutate(sex_label = ifelse(SEX == 1, "Male", "Female")) %>%
+  group_by(YEAR, sex_label, ind_sector) %>%
+  summarise(workers = sum(PERWT, na.rm = TRUE), .groups = "drop") %>%
+  collect() %>%
+  group_by(YEAR, sex_label) %>%
+  mutate(pct_workers = (workers / sum(workers)) * 100) %>%
+  ungroup() %>%
+  mutate(ind_sector = replace_na(ind_sector, "21. Unclassified / Not in Labor Force"))
+
+# Calculate Total US workers by Industry and Sex
+us_ind_sex <- mapped_workers_db %>%
+  filter(SEX != 9) %>%
+  mutate(sex_label = ifelse(SEX == 1, "Male", "Female")) %>%
+  group_by(YEAR, sex_label, ind_sector) %>%
+  summarise(workers = sum(PERWT, na.rm = TRUE), .groups = "drop") %>%
+  collect() %>%
+  group_by(YEAR, sex_label) %>%
+  mutate(pct_workers = (workers / sum(workers)) * 100) %>%
+  ungroup() %>%
+  mutate(ind_sector = replace_na(ind_sector, "21. Unclassified / Not in Labor Force"))
+```
+
+### Visualize Puerto Rican workers by Industry by Sex
+
+```{r PR worker share by Ind by Sex}
+ggplot(pr_ind_sex, aes(x = YEAR, y = pct_workers, color = sex_label)) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 1.5) +
+  facet_wrap(~ind_sector, ncol = 4) +
+
+  # Use distinct colors for contrast
+  scale_color_manual(values = c("Male" = "#1f78b4", "Female" = "#e31a1c")) +
+  my_theme +
+  theme(
+    legend.position = "bottom",
+    strip.text = element_text(size = 8, face = "bold")
+  ) +
+  scale_y_continuous(labels = function(x) paste0(x, "%")) +
+  labs(
+    title = "Puerto Rican Workforce Share by Industry and Sex (1950-2010)",
+    subtitle = "Percentage of male vs. female workforce in each sector.",
+    x = "Year",
+    y = "Share of Workforce (%)",
+    color = "Sex"
+  ) +
+  scale_x_continuous(breaks = seq(1950, 2020, by = 10))
+```
+
+### Visualize Total workers by Industry by Sex
+
+```{r US worker share by Ind by Sex}
+ggplot(us_ind_sex, aes(x = YEAR, y = pct_workers, color = sex_label)) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 1.5) +
+  facet_wrap(~ind_sector, ncol = 4) +
+
+  # Use distinct colors for contrast
+  scale_color_manual(values = c("Male" = "#1f78b4", "Female" = "#e31a1c")) +
+  my_theme +
+  theme(
+    legend.position = "bottom",
+    strip.text = element_text(size = 8, face = "bold")
+  ) +
+  scale_y_continuous(labels = function(x) paste0(x, "%")) +
+  labs(
+    title = "Total Workforce Share by Industry and Sex (1950-2010)",
+    subtitle = "Percentage of male vs. female workforce in each sector.",
+    x = "Year",
+    y = "Share of Workforce (%)",
+    color = "Sex"
+  ) +
+  scale_x_continuous(breaks = seq(1950, 2020, by = 10))
+```
+
+## Industry analysis by Income
+
+### Calculate Industry Income
+
+```{r Calculate Industry Income}
+# Calculate average wage by industry for Puerto Rican workers
+pr_income_ind <- mapped_workers_db %>%
+  filter(is_pr == TRUE, INCWAGE > 0, INCWAGE < 999999) %>%
+  group_by(YEAR, ind_sector) %>%
+  summarise(
+    avg_wage = sum(INCWAGE * CPI99 * PERWT, na.rm = TRUE) / sum(PERWT, na.rm = TRUE),
+    total_workers = sum(PERWT, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  collect() %>%
+  mutate(ind_sector = replace_na(ind_sector, "Unclassified / NILF"))
+
+# Calculate average wage by industry for Total Pop workers
+us_income_ind <- mapped_workers_db %>%
+  filter(INCWAGE > 0, INCWAGE < 999999) %>%
+  group_by(YEAR, ind_sector) %>%
+  summarise(
+    us_avg_wage = sum(INCWAGE * CPI99 * PERWT, na.rm = TRUE) / sum(PERWT, na.rm = TRUE),
+    total_workers = sum(PERWT, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  collect() %>%
+  mutate(ind_sector = replace_na(ind_sector, "Unclassified / NILF"))
+```
+
+### Visualize Income trajectory
+
+```{r PR Income Trajectory by industry}
+ggplot(pr_income_ind, aes(x = YEAR, y = avg_wage, color = ind_sector)) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 1.5) +
+  facet_wrap(~ind_sector, ncol = 4) +
+  my_theme +
+  theme(
+    legend.position = "none",
+    strip.text = element_text(size = 8, face = "bold")
+  ) +
+  # Format Y-axis as dollars
+  scale_y_continuous(labels = scales::dollar_format()) +
+  scale_x_continuous(breaks = seq(1950, 2020, by = 10)) +
+  labs(
+    title = "Average Annual Wage for Puerto Rican Workers by Industry",
+    subtitle = "Real 1999 Dollars",
+    x = "Year",
+    y = "Average Wage ($)"
+  )
+```
+
+### Best paying industries for Puerto Ricans
+
+```{r Best paying industry 2024}
+# Filter for just the final year
+pr_income_2024 <- pr_income_ind %>%
+  filter(YEAR == 2024, ind_sector != "Unclassified / NILF")
+
+ggplot(pr_income_2024, aes(x = avg_wage, y = reorder(ind_sector, avg_wage))) +
+  geom_col(fill = "#1b9e77", alpha = 0.9) +
+  my_theme +
+  scale_x_continuous(labels = scales::dollar_format()) +
+  labs(
+    title = "Highest Paying Industries for Puerto Rican Workers (2024)",
+    subtitle = "Average Annual Wage by Sector",
+    x = "Average Annual Wage ($)",
+    y = NULL
+  )
+```
+
+### Best paying industries for total pop
+
+```{r Best paying industry 2024 total pop}
+# Filter for just the final year
+us_income_2024 <- us_income_ind %>%
+  filter(YEAR == 2024, ind_sector != "21. Unclassified / Not in Labor Force")
+
+ggplot(us_income_2024, aes(x = us_avg_wage, y = reorder(ind_sector, us_avg_wage))) +
+  geom_col(fill = "#1b9e77", alpha = 0.9) +
+  my_theme +
+  scale_x_continuous(labels = scales::dollar_format()) +
+  labs(
+    title = "Highest Paying Industries for Total Pop Workers (2024)",
+    subtitle = "Average Annual Wage by Sector",
+    x = "Average Annual Wage ($)",
+    y = NULL
+  )
+```
+
+## Calculate wage gap by industry for Puerto Ricans
+
+```{r Wage gap calculation}
+# Join the datasets and calculate the wage gap
+wage_gap_ind <- pr_income_ind %>%
+  # Rename pr_income_ind's avg_wage to pr_avg_wage for clarity before joining
+  select(YEAR, ind_sector, pr_avg_wage = avg_wage) %>%
+  inner_join(
+    us_income_ind %>% select(YEAR, ind_sector, us_avg_wage),
+    by = c("YEAR", "ind_sector")
+  ) %>%
+  mutate(
+    # A ratio of 1.0 means exact wage parity
+    wage_ratio = pr_avg_wage / us_avg_wage,
+
+    # Optional: Convert to percentage difference (e.g., -15% or +5%)
+    wage_gap_pct = (wage_ratio - 1) * 100
+  ) %>%
+  filter(
+    ind_sector != "Unclassified / Not in Labor Force",
+    ind_sector != "Military"
+  )
+```
+
+```{r Wage gap vizualization}
+wage_gap_ind <- wage_gap_ind %>%
+  # Dropped width from 35 to 30 so titles stack a bit tighter in small columns
+  mutate(ind_sector = str_wrap(ind_sector, width = 30))
+
+# Removed "color = ind_sector" from aes() since it was being overwritten anyway
+p <- ggplot(wage_gap_ind, aes(x = YEAR, y = wage_ratio)) +
+  
+  # Thicker line, removed geom_point() to reduce visual clutter
+  geom_line(color = "#2c3e50", linewidth = 1) +
+  facet_wrap(~ind_sector, ncol = 4) +
+
+  # The Parity Baseline: 1.0 = Equal Pay (Swapped to a slightly darker red)
+  geom_hline(yintercept = 1.0, linetype = "dashed", color = "#c0392b", linewidth = 0.75) +
+  
+  my_theme +
+  theme(
+    legend.position = "none",
+    
+    # Bumped up text sizes significantly for presentation screens
+    strip.text = element_text(size = 11, face = "bold", margin = margin(b = 5)),
+    axis.text.x = element_text(size = 9),
+    axis.text.y = element_text(size = 9),
+    
+    # Add physical space between the small charts so they don't feel cramped
+    panel.spacing = unit(1.5, "lines") 
+  ) +
+  
+  # Format Y-axis to show percentages (e.g., 75%, 100%) for instant comprehension
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+  
+  # Reduced X-axis clutter: only show beginning, middle, and end years
+  scale_x_continuous(breaks = c(1950, 1990, max(wage_gap_ind$YEAR, na.rm = TRUE))) +
+  
+  labs(
+    # Use an active title that tells the audience what to conclude
+    title = "The PR-US Wage Gap Persists Across Almost All Industries",
+    subtitle = "PR average wage as a percentage of US average wage (100% = Wage Parity)",
+    caption = "Source: IPUMS USA, Decennial Census and ACS (1950-2024)",
+    x = NULL, # "Year" is obvious from the numbers, removing it saves space
+    y = "Wage as % of US"
+  )
+
+ggsave(
+  filename = "figures/pr_py_gap_presentation.png",
+  plot = p,
+  width = 10, # Width in inches (standard for 16:9 slides)
+  height = 5.625, # Height in inches (10 / (16/9) = 5.625)
+  dpi = 300, # 300 DPI ensures it won't look pixelated on a projector
+  bg = "white" # Ensures the background is solid white, not transparent
+)
+
+print(p)
+```
+
+## Updated visualizations for Wage Gap Analysis
+
+```{r Visualize wage gap as heat map, message=FALSE,warning=FALSE}
+heatmap_data <- wage_gap_ind %>%
+  mutate(
+    decade = YEAR,
+    wage_pct = wage_ratio * 100
+  )
+
+ggplot(
+  heatmap_data,
+  aes(
+    x = factor(decade),
+    y = fct_reorder(ind_sector, wage_pct, .fun = mean),
+    fill = wage_pct
+  )
+) +
+  geom_tile(color = "white") +
+  scale_fill_gradient2(
+    midpoint = 100,
+    low = "#b2182b",
+    mid = "#f7f7f7",
+    high = "#1a9641",
+    name = "% of US Wage"
+  ) +
+  labs(
+    title = "Puerto Rican Workers Earned Less Than the US Average in Most Industries",
+    subtitle = "Industry wage parity relative to US average wage (100 = parity)",
+    x = NULL,
+    y = NULL
+  ) +
+  my_theme
+```
+
+```{r}
+# =====================================================
+# HEATMAP: PR WAGES RELATIVE TO US AVERAGE BY INDUSTRY
+# =====================================================
+
+library(forcats)
+
+# -----------------------------------------
+# Prepare plotting dataset
+# -----------------------------------------
+
+heatmap_df <- wage_gap_ind %>%
+  mutate(
+    wage_parity = wage_ratio * 100
+  ) %>%
+  filter(
+    YEAR %in% c(
+      1950, 1960, 1970, 1980,
+      1990, 2000, 2010, 2020, 2024
+    )
+  )
+
+# -----------------------------------------
+# Order industries by latest year
+# -----------------------------------------
+
+industry_order <- heatmap_df %>%
+  filter(YEAR == max(YEAR, na.rm = TRUE)) %>%
+  arrange(wage_parity) %>%
+  pull(ind_sector)
+
+heatmap_df <- heatmap_df %>%
+  mutate(
+    ind_sector = factor(
+      ind_sector,
+      levels = industry_order
+    )
+  )
+
+# -----------------------------------------
+# Create heatmap
+# -----------------------------------------
+
+p <- ggplot(
+  heatmap_df,
+  aes(
+    x = factor(YEAR),
+    y = ind_sector,
+    fill = wage_parity
+  )
+) +
+  
+  geom_tile(
+    color = "white",
+    linewidth = 0.5
+  ) +
+  
+  scale_fill_gradient2(
+    low = "#7f0000",
+    mid = "#f7f7f7",
+    high = "#1b7837",
+    midpoint = 100,
+    limits = c(
+      floor(min(heatmap_df$wage_parity, na.rm = TRUE)),
+      ceiling(max(heatmap_df$wage_parity, na.rm = TRUE))
+    ),
+    labels = function(x) paste0(round(x), "%"),
+    name = "PR Wage\n(% of US)"
+  ) +
+  
+  labs(
+    title = "Puerto Rican Workers Earned Less Than the US Average in Most Industries",
+    subtitle = paste(
+      "Industry wages as a percentage of the US average.",
+      "100% indicates wage parity."
+    ),
+    caption = "Source: IPUMS USA, Decennial Census and ACS (1950-2024)",
+    x = NULL,
+    y = NULL
+  ) +
+  
+  my_theme +
+  
+  theme(
+    panel.grid = element_blank(),
+    
+    axis.text.x = element_text(
+      angle = 45,
+      hjust = 1
+    ),
+    
+    axis.text.y = element_text(size = 10),
+    
+    legend.position = "right",
+    
+    plot.title = element_text(
+      size = 18,
+      face = "bold"
+    ),
+    
+    plot.subtitle = element_text(
+      size = 12
+    )
+  )
+
+# -----------------------------------------
+# Save and print
+# -----------------------------------------
+
+ggsave(
+  filename = "figures/pr_wage_gap_heatmap.png",
+  plot = p,
+  width = 11,
+  height = 7,
+  dpi = 300,
+  bg = "white"
+)
+
+print(p)
+```
+
+
+## Wage Tier Analysis: Are Puerto Ricans gaining upward mobility
+
+### Wage tier data prep
+
+```{r Wage Tier Calculation}
+# 1. Create WEIGHTED Wage Tiers based on the National Economy
+industry_tiers <- us_income_ind %>%
+  group_by(YEAR) %>%
+  mutate(
+    # Divide the WORKFORCE into thirds, not just the industries
+    tier_num = as.numeric(cut(
+      us_avg_wage,
+      breaks = Hmisc::wtd.quantile(us_avg_wage,
+        weights = total_workers,
+        probs = c(0, 1 / 3, 2 / 3, 1.0)
+      ),
+      include.lowest = TRUE
+    )),
+    wage_tier = case_when(
+      tier_num == 3 ~ "High-Paying Industries",
+      tier_num == 2 ~ "Middle-Paying Industries",
+      tier_num == 1 ~ "Low-Paying Industries"
+    ),
+    wage_tier = factor(wage_tier, levels = c(
+      "High-Paying Industries",
+      "Middle-Paying Industries",
+      "Low-Paying Industries"
+    ))
+  ) %>%
+  select(YEAR, ind_sector, wage_tier) %>%
+  ungroup()
+
+# 2. Calculate Tier Distribution for Puerto Rican Workers
+pr_tier_trends <- ind_sector_data %>%
+  inner_join(industry_tiers, by = c("YEAR", "ind_sector")) %>%
+  # Group by year and the new wage tier
+  group_by(YEAR, wage_tier) %>%
+  summarise(tier_workers = sum(workers, na.rm = TRUE), .groups = "drop_last") %>%
+  mutate(
+    pct_in_tier = (tier_workers / sum(tier_workers)) * 100,
+    demographic = "Puerto Rican Workers" # Label for the final plot
+  ) %>%
+  ungroup()
+
+# 3. Calculate Tier Distribution for Total US Workers
+us_tier_trends <- ind_sector_data_us %>%
+  inner_join(industry_tiers, by = c("YEAR", "ind_sector")) %>%
+  group_by(YEAR, wage_tier) %>%
+  summarise(tier_workers = sum(workers, na.rm = TRUE), .groups = "drop_last") %>%
+  mutate(
+    pct_in_tier = (tier_workers / sum(tier_workers)) * 100,
+    demographic = "Total US Workers" # Label for the final plot
+  ) %>%
+  ungroup()
+
+# 4. Combine them into one dataframe for easy plotting
+combined_tier_trends <- bind_rows(pr_tier_trends, us_tier_trends)
+```
+
+### Wage tier Visualization
+
+```{r Visualize Wage tier analysis}
+
+p <- ggplot(combined_tier_trends, aes(x = YEAR, y = pct_in_tier, color = demographic)) +
+  
+  # 1. Thicker lines and larger points for projector visibility
+  geom_line(linewidth = 1.5) +
+  geom_point(size = 3) +
+  
+  facet_wrap(~wage_tier, ncol = 3) +
+
+  scale_color_manual(values = c(
+    "Puerto Rican Workers" = "#d95f02",
+    "Total US Workers" = "#7570b3"
+  )) +
+  my_theme +
+  theme(
+    # 2. Move legend to the top so audiences see the key BEFORE the charts
+    legend.position = "top",
+    legend.text = element_text(size = 12),
+    
+    # 3. Bump up text sizes for readability, add margin below facet titles
+    strip.text = element_text(size = 14, face = "bold", margin = margin(b = 8)),
+    axis.text = element_text(size = 10),
+    
+    # Remove minor gridlines to reduce background clutter
+    panel.grid.minor = element_blank()
+  ) +
+  scale_y_continuous(labels = function(x) paste0(x, "%")) +
+  
+  # 4. BUG FIX: Use c() instead of seq(), and reference the correct dataframe
+  scale_x_continuous(breaks = c(1950, 1990, max(combined_tier_trends$YEAR, na.rm = TRUE))) +
+  
+  labs(
+    # Consider an active title! I've left a placeholder suggestion.
+    title = "Puerto Rican Workers Show Diverging Trends Across Wage Tiers", 
+    subtitle = "Share of workforce in each wage tier: PR vs. US Baseline (1950-2024)",
+    caption = "Source: IPUMS USA, Decennial Census and ACS (1950-2024)",
+    x = NULL, # Removed "Year" to save vertical space
+    y = "Share of Workforce (%)",
+    color = NULL # Hides the legend title since the categories are self-explanatory
+  )
+
+ggsave(
+  filename = "figures/pr_wage_tier_presentation.png",
+  plot = p,
+  width = 10, # Width in inches (standard for 16:9 slides)
+  height = 5.625, # Height in inches (10 / (16/9) = 5.625)
+  dpi = 300, # 300 DPI ensures it won't look pixelated on a projector
+  bg = "white" # Ensures the background is solid white, not transparent
+)
+
+print(p)
+```
+
+### Share of Puerto Rican workers by Wage Tiers
+
+```{r Join Puerto Rican workers to Wage tier}
+wage_tier_pct_pr_wrk <- industry_tiers %>%
+  inner_join(
+    ind_sector_data %>% select(YEAR, ind_sector, pr_pct = pct_workers),
+    by = c("YEAR", "ind_sector")
+  )
+```
+
+```{r Puerto Rican workforce share by industry by wage tier, message=, warning=FALSE}
+wage_tier_pct_pr_wrk %>%
+  filter(ind_sector != "21. Unclassified / Not in Labor Force") %>%
+  ggplot(aes(x = pr_pct, y = ind_sector, fill = wage_tier)) +
+  geom_col() +
+
+  # Facet by YEAR
+  facet_wrap(~YEAR, ncol = 3) +
+
+  # FIXED: Changed to scale_fill_manual to match the aes() mapping
+  scale_fill_manual(values = c(
+    "High-Paying Industries" = "#1b9e77", # Green
+    "Middle-Paying Industries" = "#d95f02", # Orange
+    "Low-Paying Industries" = "#7570b3" # Purple
+  )) +
+  my_theme +
+  theme(
+    legend.position = "bottom",
+    legend.title = element_blank(),
+    strip.text = element_text(size = 10, face = "bold"),
+    axis.text.y = element_text(size = 7)
+  ) +
+  scale_x_continuous(labels = function(x) paste0(x, "%")) +
+
+  # FIXED: Updated labels to match the horizontal bar chart orientation
+  labs(
+    title = "Puerto Rican Workforce Share and Industry Wage Tiers",
+    subtitle = "Tracking industry participation. Bar colors indicate the national wage tier for that decade.",
+    x = "Share of Puerto Rican Workforce (%)",
+    y = NULL
+  )
+```
+
+## Occupation Analysis
+
+### Initial data prep
+
+```{r Occupation data prep}
+occ_cat_data <- mapped_workers_db %>%
+  filter(is_pr == TRUE) %>%
+  group_by(YEAR, occ_cat1) %>%
+  summarise(workers = sum(PERWT, na.rm = TRUE), .groups = "drop") %>%
+  collect() %>%
+  group_by(YEAR) %>%
+  mutate(pct_workers = workers / sum(workers) * 100) %>%
+  ungroup()
+
+occ_cat_data_us <- mapped_workers_db %>%
+  group_by(YEAR, occ_cat1) %>%
+  summarise(workers = sum(PERWT, na.rm = TRUE), .groups = "drop") %>%
+  collect() %>%
+  group_by(YEAR) %>%
+  mutate(pct_workers = workers / sum(workers) * 100) %>%
+  ungroup()
+```
+
+### Visualize Puerto Rican workers by occupation
+
+```{r Visualize PR workers by Occ}
+ggplot(occ_cat_data, aes(x = YEAR, y = workers, color = occ_cat1)) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 1.5) +
+  facet_wrap(~occ_cat1, ncol = 4) +
+  my_theme +
+  theme(
+    legend.position = "none",
+    strip.text = element_text(size = 8, face = "bold")
+  ) +
+  labs(
+    title = "Total PR Workers by Occupational Category",
+    subtitle = "Estimated workers over time. Note: Y-axis scales vary by panel to show specific trends.",
+    x = "Year",
+    y = "Total Workers"
+  ) +
+  scale_x_continuous(breaks = seq(1950, 2020, by = 10))
+```
+
+### Visualize Total workers by occupation
+
+```{r Visualize Total workers by Occ}
+ggplot(occ_cat_data_us, aes(x = YEAR, y = workers, color = occ_cat1)) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 1.5) +
+  facet_wrap(~occ_cat1, ncol = 4) +
+  my_theme +
+  theme(
+    legend.position = "none",
+    strip.text = element_text(size = 8, face = "bold")
+  ) +
+  labs(
+    title = "Total US Workers by Occupational Category",
+    subtitle = "Estimated workers over time. Note: Y-axis scales vary by panel to show specific trends.",
+    x = "Year",
+    y = "Total Workers"
+  ) +
+  scale_x_continuous(breaks = seq(1950, 2020, by = 10))
+```
+
+### Percentage point difference
+
+```{r Pct Point Diff Calculation}
+occ_change <- occ_cat_data %>%
+  group_by(occ_cat1) %>%
+  arrange(YEAR) %>%
+  summarise(
+    first_year = first(YEAR),
+    last_year = last(YEAR),
+    first_share = first(pct_workers),
+    last_share = last(pct_workers),
+    pp_change = last_share - first_share,
+    .groups = "drop"
+  ) %>%
+  arrange(desc(pp_change))
+
+print(head(occ_change, 3))
+print(tail(occ_change, 3))
+
+occ_change_us <- occ_cat_data_us %>%
+  group_by(occ_cat1) %>%
+  arrange(YEAR) %>%
+  summarise(
+    first_year = first(YEAR),
+    last_year = last(YEAR),
+    first_share = first(pct_workers),
+    last_share = last(pct_workers),
+    pp_change = last_share - first_share,
+    .groups = "drop"
+  ) %>%
+  arrange(desc(pp_change))
+
+print(head(occ_change_us, 3))
+print(tail(occ_change_us, 3))
+```
+
+```{r Pct point change PR Visualization}
+ggplot(occ_change, aes(
+  x = reorder(occ_cat1, pp_change),
+  y = pp_change,
+  fill = pp_change > 0
+)) +
+  geom_col() +
+  coord_flip() +
+  my_theme +
+  theme(legend.position = "none") +
+  scale_fill_manual(values = c("FALSE" = "#d95f02", "TRUE" = "#1b9e77")) +
+  labs(
+    title = "Change in Occupational Composition among Puerto Rican Workers",
+    subtitle = "Percentage-point change in workforce share between first and last year",
+    x = NULL,
+    y = "Percentage Point Change"
+  )
+```
+
+```{r Pct point change Total Visualization}
+ggplot(occ_change_us, aes(
+  x = reorder(occ_cat1, pp_change),
+  y = pp_change,
+  fill = pp_change > 0
+)) +
+  geom_col() +
+  coord_flip() +
+  my_theme +
+  theme(legend.position = "none") +
+  scale_fill_manual(values = c("FALSE" = "#d95f02", "TRUE" = "#1b9e77")) +
+  labs(
+    title = "Change in Occupational Composition among Total Workers",
+    subtitle = "Percentage-point change in workforce share between first and last year",
+    x = NULL,
+    y = "Percentage Point Change"
+  )
+```
+
+### Workforce Share by Occupation in 1950
+
+```{r Workforce Share 1950}
+ggplot(occ_change, aes(x = first_share, y = reorder(occ_cat1, first_share))) +
+  geom_col(fill = "#2c3e50", alpha = 0.9) +
+  my_theme +
+  theme(legend.position = "none") +
+  scale_x_continuous(
+    labels = function(x) {
+      paste0(x, "%")
+    }
+  ) +
+  labs(
+    title = "Occupational Share among Puerto Rican Workers, 1950",
+    subtitle = "Workforce Share by Occupation",
+    x = "Share of Workforce",
+    y = NULL
+  )
+```
+
+### Workforce Share by Occupation 1950 to 2010
+
+```{r PR Work share by Occ}
+ggplot(occ_cat_data, aes(x = pct_workers, y = occ_cat1, fill = occ_cat1)) +
+  geom_col(fill = "#2c3e50", alpha = 0.9) +
+  facet_wrap(~YEAR, ncol = 3) +
+  my_theme +
+  theme(
+    legend.position = "none",
+    strip.text = element_text(size = 10, face = "bold")
+  ) +
+  scale_x_continuous(
+    labels = function(x) {
+      paste0(x, "%")
+    }
+  ) +
+  labs(
+    title = "Puerto Rican Workforce Share by Occupation",
+    subtitle = "Percentage of total workforce across decennial years",
+    x = "Share of Workforce (%)",
+    y = NULL
+  )
+```
+
+### Calculate Growth index
+
+```{r Growth index calculation}
+occ_index <- occ_cat_data %>%
+  filter(occ_cat1 != "11. Military", occ_cat1 != "Unclassified") %>%
+  group_by(occ_cat1) %>%
+  arrange(YEAR) %>%
+  mutate(index = workers / first(workers) * 100) %>%
+  ungroup()
+
+occ_index_us <- occ_cat_data_us %>%
+  filter(occ_cat1 != "11. Military", occ_cat1 != "Unclassified") %>%
+  group_by(occ_cat1) %>%
+  arrange(YEAR) %>%
+  mutate(index = workers / first(workers) * 100) %>%
+  ungroup()
+```
+
+### Visualize Growth Index
+
+#### Puerto Rican
+
+```{r Growth Index visualize}
+ggplot(occ_index, aes(x = YEAR, y = index, color = occ_cat1)) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 1) +
+  facet_wrap(~occ_cat1, ncol = 4) +
+  my_theme +
+  theme(
+    legend.position = "none",
+    strip.text = element_text(size = 8, face = "bold")
+  ) +
+  geom_hline(
+    yintercept = 100,
+    linetype = "dashed",
+    color = "black",
+    alpha = 0.5
+  ) +
+  labs(
+    title = "Occupational Employment Growth Index",
+    subtitle = "First year = 100. Dashed line represents baseline.",
+    x = "Year",
+    y = "Index"
+  ) +
+  scale_x_continuous(breaks = seq(1950, 2020, by = 10))
+```
+
+#### Total US
+
+```{r Total US Growth Index viz}
+ggplot(occ_index_us, aes(x = YEAR, y = index, color = occ_cat1)) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 1) +
+  facet_wrap(~occ_cat1, ncol = 4) +
+  my_theme +
+  theme(
+    legend.position = "none",
+    strip.text = element_text(size = 8, face = "bold")
+  ) +
+  geom_hline(
+    yintercept = 100,
+    linetype = "dashed",
+    color = "black",
+    alpha = 0.5
+  ) +
+  labs(
+    title = "Occupational Employment Growth Index",
+    subtitle = "First year = 100. Dashed line represents baseline.",
+    x = "Year",
+    y = "Index"
+  ) +
+  scale_x_continuous(breaks = seq(1950, 2020, by = 10))
+```
+
+### Over / Under Representation Index
+
+```{r Over/under data prep}
+occ_rep_data <- occ_cat_data %>%
+  select(YEAR, occ_cat1, pr_pct = pct_workers) %>%
+  inner_join(
+    occ_cat_data_us %>% select(YEAR, occ_cat1, us_pct = pct_workers),
+    by = c("YEAR", "occ_cat1")
+  ) %>%
+  mutate(rep_index = pr_pct / us_pct) %>%
+  filter(occ_cat1 != "Unclassified", occ_cat1 != "11. Military")
+```
+
+```{r Over/under vizualization}
+ggplot(occ_rep_data, aes(x = YEAR, y = rep_index, color = occ_cat1)) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 1.5) +
+  facet_wrap(~occ_cat1, ncol = 4, scales = "free_y") +
+  geom_hline(
+    yintercept = 1,
+    linetype = "dashed",
+    color = "black",
+    linewidth = 0.8
+  ) +
+  my_theme +
+  theme(
+    legend.position = "none",
+    strip.text = element_text(size = 8, face = "bold")
+  ) +
+  labs(
+    title = "Puerto Rican Worker Representation Index by Occupation",
+    subtitle = "Index > 1.0 = Overrepresented vs. US Average | Index < 1.0 = Underrepresented",
+    x = "Year",
+    y = "Representation Index (PR Share / US Share)"
+  ) +
+  scale_x_continuous(breaks = seq(1950, 2020, by = 10))
+```
+
+### Over / Under Representation Index Adjusted for Small Denominator
+
+```{r Over/under adjusted data prep}
+occ_rep_data_national_controlled <- occ_cat_data %>%
+  select(YEAR, occ_cat1, pr_pct = pct_workers) %>%
+  inner_join(
+    occ_cat_data_us %>% select(YEAR, occ_cat1, us_pct = pct_workers),
+    by = c("YEAR", "occ_cat1")
+  ) %>%
+  filter(us_pct >= 1.0) %>%
+  mutate(rep_index = pr_pct / us_pct) %>%
+  filter(occ_cat1 != "Unclassified", occ_cat1 != "11. Military")
+```
+
+### Visualize Over / under adjusted
+
+```{r Visualize Over/under adjusted}
+ggplot(
+  occ_rep_data_national_controlled,
+  aes(x = YEAR, y = rep_index, color = occ_cat1)
+) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 1.5) +
+  facet_wrap(~occ_cat1, ncol = 4, scales = "free_y") +
+  geom_hline(
+    yintercept = 1,
+    linetype = "dashed",
+    color = "black",
+    linewidth = 0.8
+  ) +
+  my_theme +
+  theme(
+    legend.position = "none",
+    strip.text = element_text(size = 8, face = "bold")
+  ) +
+  labs(
+    title = "Puerto Rican Worker Representation Index by Occupation",
+    subtitle = "Compared to National Baseline | Excludes occupations < 1% of total US workforce",
+    x = "Year",
+    y = "Representation Index (PR Share / Total US Share)"
+  )
+```
+
+## Occupation Analysis by Sex
+
+### Calculate Occupation metrics by Sex
+
+```{r Occupation by sex data prep}
+# Define occupational factor levels to ensure consistent plot ordering
+occ_levels <- c(
+  "Management, Business, Entertainment & Media", "STEM",
+  "Education, Community & Social Services", "Health & Medical",
+  "Law Enforcement & Transportation", "Food, Maintenance, Building & Grounds Cleaning",
+  "Sales and Related", "Administrative and Office Support",
+  "Natural Resources, Construction & Maintenance", "Production and Material Moving",
+  "Military", "Unclassified"
+)
+
+pr_occ_sex <- mapped_workers_db %>%
+  filter(is_pr == TRUE, SEX != 9) %>%
+  mutate(sex_label = ifelse(SEX == 1, "Male", "Female")) %>%
+  group_by(YEAR, sex_label, occ_cat1) %>%
+  summarise(workers = sum(PERWT, na.rm = TRUE), .groups = "drop") %>%
+  collect() %>%
+  mutate(
+    occ_cat1 = replace_na(occ_cat1, "Unclassified"),
+    occ_cat1 = factor(occ_cat1, levels = occ_levels)
+  ) %>%
+  group_by(YEAR, sex_label) %>%
+  mutate(pct_workers = (workers / sum(workers)) * 100) %>%
+  ungroup()
+
+us_occ_sex <- mapped_workers_db %>%
+  filter(SEX != 9) %>%
+  mutate(sex_label = ifelse(SEX == 1, "Male", "Female")) %>%
+  group_by(YEAR, sex_label, occ_cat1) %>%
+  summarise(workers = sum(PERWT, na.rm = TRUE), .groups = "drop") %>%
+  collect() %>%
+  mutate(
+    occ_cat1 = replace_na(occ_cat1, "Unclassified"),
+    occ_cat1 = factor(occ_cat1, levels = occ_levels)
+  ) %>%
+  group_by(YEAR, sex_label) %>%
+  mutate(pct_workers = (workers / sum(workers)) * 100) %>%
+  ungroup()
+```
+
+### Visualize Puerto Rican workers by Occupation by Sex
+
+```{r}
+ggplot(pr_occ_sex, aes(x = YEAR, y = pct_workers, color = sex_label)) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 1.5) +
+  facet_wrap(~occ_cat1, ncol = 4) +
+  scale_color_manual(values = c("Male" = "#1f78b4", "Female" = "#e31a1c")) +
+  my_theme +
+  theme(
+    legend.position = "bottom",
+    strip.text = element_text(size = 8, face = "bold")
+  ) +
+  scale_y_continuous(
+    labels = function(x) {
+      paste0(x, "%")
+    }
+  ) +
+  labs(
+    title = "Puerto Rican Workforce Share by Occupation and Sex (1950-2010)",
+    subtitle = "Percentage of male vs. female workforce in each category.",
+    x = "Year",
+    y = "Share of Workforce (%)",
+    color = "Sex"
+  ) +
+  scale_x_continuous(breaks = seq(1950, 2020, by = 10))
+```
+
+### Visualize Total workers by Occupation by Sex
+
+```{r}
+ggplot(us_occ_sex, aes(x = YEAR, y = pct_workers, color = sex_label)) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 1.5) +
+  facet_wrap(~occ_cat1, ncol = 4) +
+  scale_color_manual(values = c("Male" = "#1f78b4", "Female" = "#e31a1c")) +
+  my_theme +
+  theme(
+    legend.position = "bottom",
+    strip.text = element_text(size = 8, face = "bold")
+  ) +
+  scale_y_continuous(
+    labels = function(x) {
+      paste0(x, "%")
+    }
+  ) +
+  labs(
+    title = "Total Workforce Share by Occupation and Sex (1950-2010)",
+    subtitle = "Percentage of male vs. female workforce in each category.",
+    x = "Year",
+    y = "Share of Workforce (%)",
+    color = "Sex"
+  ) +
+  scale_x_continuous(breaks = seq(1950, 2020, by = 10))
+```
+
+## Occupation analysis by Income
+
+### Calculate Occupation Income
+
+```{r}
+pr_income_occ <- mapped_workers_db %>%
+  filter(is_pr == TRUE, INCWAGE > 0, INCWAGE < 999999) %>%
+  group_by(YEAR, occ_cat1) %>%
+  summarise(
+    avg_wage = sum(INCWAGE * CPI99 * PERWT, na.rm = TRUE) / sum(PERWT, na.rm = TRUE),
+    total_workers = sum(PERWT, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  collect() %>%
+  mutate(
+    occ_cat1 = replace_na(occ_cat1, "Unclassified"),
+    occ_cat1 = factor(occ_cat1, levels = occ_levels) # Requires occ_levels defined in chunk above
+  )
+
+us_income_occ <- mapped_workers_db %>%
+  filter(INCWAGE > 0, INCWAGE < 999999) %>%
+  group_by(YEAR, occ_cat1) %>%
+  summarise(
+    us_avg_wage = sum(INCWAGE * CPI99 * PERWT, na.rm = TRUE) / sum(PERWT, na.rm = TRUE),
+    total_workers = sum(PERWT, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  collect() %>%
+  mutate(
+    occ_cat1 = replace_na(occ_cat1, "Unclassified"),
+    occ_cat1 = factor(occ_cat1, levels = occ_levels)
+  )
+```
+
+### Visualize Income trajectory
+
+```{r}
+ggplot(pr_income_occ, aes(x = YEAR, y = avg_wage, color = occ_cat1)) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 1.5) +
+  facet_wrap(~occ_cat1, ncol = 4) +
+  my_theme +
+  theme(
+    legend.position = "none",
+    strip.text = element_text(size = 8, face = "bold")
+  ) +
+  scale_y_continuous(labels = scales::dollar_format()) +
+  scale_x_continuous(breaks = seq(1950, 2020, by = 10)) +
+  labs(
+    title = "Average Annual Wage for Puerto Rican Workers by Occupation",
+    subtitle = "Real 1999 Dollars",
+    x = "Year",
+    y = "Average Wage ($)"
+  )
+```
+
+### Best paying occupations for Puerto Ricans
+
+```{r}
+pr_income_2024 <- pr_income_occ %>%
+  filter(YEAR == 2024, occ_cat1 != "Unclassified")
+
+ggplot(pr_income_2024, aes(x = avg_wage, y = reorder(occ_cat1, avg_wage))) +
+  geom_col(fill = "#1b9e77", alpha = 0.9) +
+  my_theme +
+  scale_x_continuous(labels = scales::dollar_format()) +
+  labs(
+    title = "Highest Paying Occupations for Puerto Rican Workers (2024)",
+    subtitle = "Average Annual Wage by Category",
+    x = "Average Annual Wage ($)",
+    y = NULL
+  )
+```
+
+### Best paying occupations for total pop
+
+```{r}
+us_income_2024 <- us_income_occ %>%
+  filter(YEAR == 2024, occ_cat1 != "Unclassified")
+
+ggplot(us_income_2024, aes(x = us_avg_wage, y = reorder(occ_cat1, us_avg_wage))) +
+  geom_col(fill = "#1b9e77", alpha = 0.9) +
+  my_theme +
+  scale_x_continuous(labels = scales::dollar_format()) +
+  labs(
+    title = "Highest Paying Occupations for Total Pop Workers (2024)",
+    subtitle = "Average Annual Wage by Category",
+    x = "Average Annual Wage ($)",
+    y = NULL
+  )
+```
+
+### Calculate wage gap by occupation for Puerto Ricans
+
+```{r}
+wage_gap_occ <- pr_income_occ %>%
+  select(YEAR, occ_cat1, pr_avg_wage = avg_wage) %>%
+  inner_join(us_income_occ %>% select(YEAR, occ_cat1, us_avg_wage),
+    by = c("YEAR", "occ_cat1")
+  ) %>%
+  mutate(
+    wage_ratio = pr_avg_wage / us_avg_wage,
+    wage_gap_pct = (wage_ratio - 1) * 100
+  ) %>%
+  filter(occ_cat1 != "Unclassified", occ_cat1 != "11. Military")
+```
+
+### Visualize wage gap for Puuerto Ricans
+
+```{r}
+ggplot(wage_gap_occ, aes(x = YEAR, y = wage_ratio, color = occ_cat1)) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 1.5) +
+  facet_wrap(~occ_cat1, ncol = 4) +
+  geom_hline(
+    yintercept = 1.0,
+    linetype = "dashed",
+    color = "black",
+    linewidth = 0.8
+  ) +
+  my_theme +
+  theme(
+    legend.position = "none",
+    strip.text = element_text(size = 8, face = "bold")
+  ) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.01)) +
+  scale_x_continuous(breaks = seq(1950, 2020, by = 10)) +
+  labs(
+    title = "Occupational Wage Gap for Puerto Rican Workers (1950-2024)",
+    subtitle = "Ratio of PR Average Wage to US Average Wage. 1.0 = Wage Parity.",
+    x = "Year",
+    y = "Wage Ratio (PR / US)"
+  )
+```
+
+### Wage Tier Analysis:Are Puerto Ricans gaining upward mobility
+
+#### Wage tier data prep
+
+```{r}
+occupation_tiers <- us_income_occ %>%
+  group_by(YEAR) %>%
+  mutate(
+    tier_num = ntile(us_avg_wage, 3),
+    wage_tier = case_when(
+      tier_num == 3 ~ "High-Paying Occupations",
+      tier_num == 2 ~ "Middle-Paying Occupations",
+      tier_num == 1 ~ "Low-Paying Occupations"
+    ),
+    wage_tier = factor(
+      wage_tier,
+      levels = c(
+        "High-Paying Occupations",
+        "Middle-Paying Occupations",
+        "Low-Paying Occupations"
+      )
+    )
+  ) %>%
+  select(YEAR, occ_cat1, wage_tier) %>%
+  ungroup()
+
+pr_tier_trends <- occ_cat_data %>%
+  inner_join(occupation_tiers, by = c("YEAR", "occ_cat1")) %>%
+  group_by(YEAR, wage_tier) %>%
+  summarise(
+    tier_workers = sum(workers, na.rm = TRUE),
+    .groups = "drop_last"
+  ) %>%
+  mutate(
+    pct_in_tier = (tier_workers / sum(tier_workers)) * 100,
+    demographic = "Puerto Rican Workers"
+  ) %>%
+  ungroup()
+
+us_tier_trends <- occ_cat_data_us %>%
+  inner_join(occupation_tiers, by = c("YEAR", "occ_cat1")) %>%
+  group_by(YEAR, wage_tier) %>%
+  summarise(
+    tier_workers = sum(workers, na.rm = TRUE),
+    .groups = "drop_last"
+  ) %>%
+  mutate(
+    pct_in_tier = (tier_workers / sum(tier_workers)) * 100,
+    demographic = "Total US Workers"
+  ) %>%
+  ungroup()
+
+combined_tier_trends <- bind_rows(pr_tier_trends, us_tier_trends)
+```
+
+### Wage tier Visualization
+
+```{r}
+ggplot(
+  combined_tier_trends,
+  aes(x = YEAR, y = pct_in_tier, color = demographic)
+) +
+  geom_line(linewidth = 0.75) +
+  geom_point(size = 2) +
+  facet_wrap(~wage_tier, ncol = 3) +
+  scale_color_manual(values = c(
+    "Puerto Rican Workers" = "#d95f02",
+    "Total US Workers" = "#7570b3"
+  )) +
+  my_theme +
+  theme(
+    legend.position = "bottom",
+    strip.text = element_text(size = 10, face = "bold")
+  ) +
+  scale_y_continuous(
+    labels = function(x) {
+      paste0(x, "%")
+    }
+  ) +
+  scale_x_continuous(breaks = seq(1950, 2020, by = 10)) +
+  labs(
+    title = "Workforce Distribution Across Occupational Wage Tiers (1950-2024)",
+    subtitle = "Comparing PR workforce composition against the US baseline",
+    x = "Year",
+    y = "Share of Workforce (%)",
+    color = NULL
+  )
+```
+
+### Share of Puerto Rican workers by Wage Tiers
+
+```{r}
+wage_tier_pct_pr_occ <- occupation_tiers %>%
+  inner_join(occ_cat_data %>% select(YEAR, occ_cat1, pr_pct = pct_workers),
+    by = c("YEAR", "occ_cat1")
+  )
+
+pr_tier_summary <- wage_tier_pct_pr_occ %>%
+  group_by(YEAR, wage_tier) %>%
+  summarise(
+    total_tier_pct = sum(pr_pct, na.rm = TRUE),
+    .groups = "drop"
+  )
+```
+
+### Visualize Share of Puerto Rican Workers by Wage Tiers
+
+```{r}
+ggplot(
+  pr_tier_summary,
+  aes(x = YEAR, y = total_tier_pct, fill = wage_tier)
+) +
+  geom_area(
+    alpha = 0.85,
+    color = "white",
+    linewidth = 0.4
+  ) +
+  scale_fill_manual(
+    values = c(
+      "High-Paying Occupations" = "#1b9e77",
+      "Middle-Paying Occupations" = "#d95f02",
+      "Low-Paying Occupations" = "#7570b3"
+    )
+  ) +
+  my_theme +
+  theme(legend.position = "bottom", legend.title = element_blank()) +
+  scale_y_continuous(
+    labels = function(x) {
+      paste0(x, "%")
+    }
+  ) +
+  scale_x_continuous(breaks = seq(1950, 2020, by = 10)) +
+  labs(
+    title = "Puerto Rican Workforce Distribution by Wage Tier",
+    subtitle = "Percentage of workers in High, Middle, and Low paying occupations",
+    x = "Year",
+    y = "Share of Workforce (%)"
+  )
+```
+
+```{r}
+ggplot(
+  pr_tier_summary,
+  aes(x = YEAR, y = total_tier_pct, color = wage_tier)
+) +
+  geom_line(linewidth = 1.2) +
+  geom_point(size = 2.5) +
+  scale_color_manual(
+    values = c(
+      "High-Paying Occupations" = "#1b9e77",
+      "Middle-Paying Occupations" = "#d95f02",
+      "Low-Paying Occupations" = "#7570b3"
+    )
+  ) +
+  my_theme +
+  theme(legend.position = "bottom", legend.title = element_blank()) +
+  scale_y_continuous(
+    labels = function(x) {
+      paste0(x, "%")
+    }
+  ) +
+  scale_x_continuous(breaks = seq(1950, 2020, by = 10)) +
+  labs(
+    title = "Puerto Rican Workforce Trajectory by Wage Tier",
+    subtitle = "Tracking the share of workers in each tier over time",
+    x = "Year",
+    y = "Share of Workforce (%)"
+  )
+```
+
+### Change in Puerto Rican Worker Share and Wage Tier
+
+```{r}
+ggplot(wage_tier_pct_pr_occ, aes(x = YEAR, y = pr_pct)) +
+  geom_line(color = "black", linewidth = 0.75) +
+  geom_point(aes(color = wage_tier), size = 2) +
+  facet_wrap(~occ_cat1, ncol = 4) +
+  scale_color_manual(
+    values = c(
+      "High-Paying Occupations" = "#1b9e77",
+      "Middle-Paying Occupations" = "#d95f02",
+      "Low-Paying Occupations" = "#7570b3"
+    )
+  ) +
+  my_theme +
+  theme(
+    legend.position = "bottom",
+    legend.title = element_blank(),
+    strip.text = element_text(size = 8, face = "bold")
+  ) +
+  scale_y_continuous(
+    labels = function(x) {
+      paste0(x, "%")
+    }
+  ) +
+  scale_x_continuous(breaks = seq(1950, 2020, by = 10)) +
+  labs(
+    title = "Puerto Rican Workforce Share and Occupational Wage Tiers",
+    subtitle = "Tracking occupational participation. Dot colors indicate the national wage tier for that decade.",
+    x = "Year",
+    y = "Share of Puerto Rican Workforce (%)"
+  )
+```
+
+```{r }
+wage_tier_pct_pr_occ %>%
+  filter(occ_cat1 != "Unclassified") %>%
+  ggplot(aes(x = pr_pct, y = occ_cat1, fill = wage_tier)) +
+  geom_col() +
+  facet_wrap(~YEAR, ncol = 3) +
+  scale_fill_manual(
+    values = c(
+      "High-Paying Occupations" = "#1b9e77",
+      "Middle-Paying Occupations" = "#d95f02",
+      "Low-Paying Occupations" = "#7570b3"
+    )
+  ) +
+  my_theme +
+  theme(
+    legend.position = "bottom",
+    legend.title = element_blank(),
+    strip.text = element_text(size = 10, face = "bold"),
+    axis.text.y = element_text(size = 7)
+  ) +
+  scale_x_continuous(
+    labels = function(x) {
+      paste0(x, "%")
+    }
+  ) +
+  labs(
+    title = "Puerto Rican Workforce Share and Occupational Wage Tiers",
+    subtitle = "Tracking occupational participation. Bar colors indicate the national wage tier for that decade.",
+    x = "Share of Puerto Rican Workforce (%)",
+    y = NULL
+  )
+```
+
+## AI Exposed Occupations Analysis
+
+### Map industry codes and AI vulnerable Occupations
+
+```{r Mapping Industry and Occupaiton Categories}
+mapped_workers_db <- data_hist %>%
+  # Apply base employment filter, correcting the missing GQ != 3
+  filter(AGE >= 16, EMPSTAT == 1, GQ != 3) %>%
+  mutate(
+    # Create a boolean flag for PR status to split the data later
+    is_pr = case_when(
+      HISPAN == 2 | HISPAND == 200 | ANCESTR1 == 261 ~ TRUE,
+      TRUE ~ FALSE
+    ),
+
+    # Map Industries
+    ind_sector = case_when(
+      IND1990 >= 10 & IND1990 <= 32 ~ "01. Agriculture, Forestry, Fishing & Hunting",
+      IND1990 >= 40 & IND1990 <= 50 ~ "02. Mining, Quarrying, & Oil/Gas Extraction",
+      IND1990 >= 450 & IND1990 <= 472 ~ "03. Utilities",
+      IND1990 == 60 ~ "04. Construction",
+      IND1990 >= 100 & IND1990 <= 392 ~ "05. Manufacturing",
+      IND1990 >= 500 & IND1990 <= 571 ~ "06. Wholesale Trade",
+
+      # Excludes 641 (Eating/Drinking Places) to align with modern NAICS grouping
+      (IND1990 >= 580 & IND1990 <= 691) & IND1990 != 641 ~ "07. Retail Trade",
+      IND1990 >= 400 & IND1990 <= 432 ~ "08. Transportation & Warehousing",
+      IND1990 >= 440 & IND1990 <= 442 ~ "09. Information", # Maps 1990 Communications here
+      IND1990 >= 700 & IND1990 <= 711 ~ "10. Finance & Insurance",
+      IND1990 == 712 ~ "11. Real Estate & Rental/Leasing",
+
+      # Merges 1990 Engineering/Architecture/Accounting with related professional codes
+      IND1990 == 841 | (IND1990 >= 881 & IND1990 <= 893) ~ "12. Professional, Scientific, & Tech Services",
+      IND1990 >= 721 & IND1990 <= 741 ~ "13. Administrative, Support, & Waste Mgmt",
+      IND1990 >= 842 & IND1990 <= 860 ~ "14. Educational Services",
+      (IND1990 >= 812 & IND1990 <= 840) | (IND1990 >= 861 & IND1990 <= 873) ~ "15. Health Care & Social Assistance",
+      IND1990 >= 800 & IND1990 <= 810 ~ "16. Arts, Entertainment, & Recreation",
+
+      # Combines 1990 Eating/Drinking places (641) with Hotels/Lodging (762, 770)
+      IND1990 %in% c(641, 762, 770) ~ "17. Accommodation & Food Services",
+      IND1990 %in% c(750, 751, 752, 761, 771, 772, 781, 791) ~ "18. Other Services (Except Public Admin)",
+      IND1990 >= 900 & IND1990 <= 932 ~ "19. Public Administration",
+      IND1990 >= 940 & IND1990 <= 960 ~ "20. Military",
+      TRUE ~ "21. Unclassified / Not in Labor Force"
+    ),
+
+    # Map Occupations
+    # Map Occupations
+    occ_cat1 = case_when(
+      (OCC2010 >= 10 &
+        OCC2010 <= 960) |
+        (OCC2010 >= 2600 &
+          OCC2010 <= 2960) ~ "Management, Business, Entertainment & Media",
+      OCC2010 >= 1000 & OCC2010 <= 1965 ~ "STEM",
+      (OCC2010 >= 2000 &
+        OCC2010 <= 2550) |
+        (OCC2010 >= 4300 &
+          OCC2010 <= 4650) ~ "Education, Community & Social Services",
+      OCC2010 >= 3000 & OCC2010 <= 3655 ~ "Health & Medical",
+      (OCC2010 >= 3700 &
+        OCC2010 <= 3955) |
+        (OCC2010 >= 9000 &
+          OCC2010 <= 9420) ~ "Law Enforcement & Transportation",
+      OCC2010 >= 4000 &
+        OCC2010 <= 4250 ~ "Food, Maintenance, Building & Grounds Cleaning",
+      OCC2010 >= 4700 & OCC2010 <= 4965 ~ "Sales and Related",
+      OCC2010 >= 5000 &
+        OCC2010 <= 5940 ~ "Administrative and Office Support",
+      OCC2010 >= 6005 &
+        OCC2010 <= 7630 ~ "Natural Resources, Construction & Maintenance",
+      (OCC2010 >= 7700 &
+        OCC2010 <= 8965) |
+        (OCC2010 >= 9500 &
+          OCC2010 <= 9750) ~ "Production and Material Moving",
+      OCC2010 >= 9800 & OCC2010 <= 9830 ~ "Military",
+      OCC2010 %in% c(9920, 9999) ~ "Unclassified",
+      TRUE ~ "Unclassified"
+    ),
+    # Map AI vulnerable occupaitons
+    ai_vuln = case_when(
+      OCC2010 %in% c(10, 20, 110, 120, 800, 1010, 1020, 3255, 4850, 5240, 5400, 5700, 7340) ~ "AI Vulnerable",
+      OCC2010 %in% c(9920, 9999) ~ "Unclassified",
+      TRUE ~ "Not AI Vulnerable"
+    )
+  )
+```
+
+### Exposure over time (1950 to 2024)
+
+```{r Calculate and visualize exposure}
+ai_exposure_data <- mapped_workers_db %>%
+  filter(ai_vuln != "Unclassified") %>%
+  group_by(YEAR, is_pr, ai_vuln) %>%
+  summarise(workers = sum(PERWT, na.rm = TRUE), .groups = "drop") %>%
+  collect() %>%
+  group_by(YEAR, is_pr) %>%
+  mutate(
+    pct_workers = (workers / sum(workers)) * 100,
+    demographic = ifelse(is_pr, "Puerto Rican Workers", "Total US Workers")
+  ) %>%
+  ungroup()
+
+ggplot(
+  ai_exposure_data %>% filter(ai_vuln == "AI Vulnerable"),
+  aes(x = YEAR, y = pct_workers, color = demographic)
+) +
+  geom_line(linewidth = 1.2) +
+  geom_point(size = 2.5) +
+  my_theme +
+  scale_color_manual(values = c("Puerto Rican Workers" = "#d95f02", "Total US Workers" = "#7570b3")) +
+  scale_y_continuous(labels = function(x) paste0(x, "%")) +
+  labs(
+    title = "Workforce Exposure to AI Technologies (1950-2024)",
+    subtitle = "Percentage of workers employed in AI-vulnerable occupations",
+    x = "Year",
+    y = "Share of Workforce (%)"
+  ) +
+  scale_x_continuous(breaks = seq(1950, 2020, by = 10))
+```
+
+### Wage Premium or Penalty for AI vulnerable occupations
+
+```{r Wage preiums calculation and visualization}
+ai_wage_data <- mapped_workers_db %>%
+  filter(ai_vuln != "Unclassified", INCWAGE > 0, INCWAGE < 999999) %>%
+  group_by(YEAR, is_pr, ai_vuln) %>%
+  summarise(
+    avg_wage = sum(INCWAGE * CPI99 * PERWT, na.rm = TRUE) / sum(PERWT, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  collect() %>%
+  mutate(demographic = ifelse(is_pr, "Puerto Rican Workers", "Total US Workers"))
+
+ggplot(ai_wage_data, aes(x = YEAR, y = avg_wage, color = demographic, linetype = ai_vuln)) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 2.5) +
+  my_theme +
+  scale_color_manual(values = c("Puerto Rican Workers" = "#d95f02", "Total US Workers" = "#7570b3")) +
+  scale_y_continuous(labels = scales::dollar_format()) +
+  labs(
+    title = "Historical Wage Trajectories by AI Vulnerability",
+    subtitle = "Real 1999 Dollars",
+    x = "Year",
+    y = "Average Annual Wage ($)"
+  ) +
+  scale_x_continuous(breaks = seq(1950, 2020, by = 10))
+```
+
+### Demographic variations in AI vulnerable occupations
+
+```{r Demographic difference calculation and visualization}
+ai_demographics <- mapped_workers_db %>%
+  filter(is_pr == TRUE, ai_vuln != "Unclassified", SEX != 9) %>%
+  mutate(sex_label = ifelse(SEX == 1, "Male", "Female")) %>%
+  group_by(YEAR, sex_label, ai_vuln) %>%
+  summarise(workers = sum(PERWT, na.rm = TRUE), .groups = "drop") %>%
+  collect() %>%
+  group_by(YEAR, sex_label) %>%
+  mutate(pct_workers = (workers / sum(workers)) * 100) %>%
+  ungroup()
+
+ggplot(
+  ai_demographics %>% filter(ai_vuln == "AI Vulnerable"),
+  aes(x = YEAR, y = pct_workers, color = sex_label)
+) +
+  geom_line(linewidth = 1.2) +
+  geom_point(size = 2.5) +
+  my_theme +
+  scale_color_manual(values = c("Male" = "#1f78b4", "Female" = "#e31a1c")) +
+  scale_y_continuous(labels = function(x) paste0(x, "%")) +
+  labs(
+    title = "Puerto Rican AI Vulnerability by Sex",
+    subtitle = "Percentage of each sex's workforce in AI-vulnerable occupations",
+    x = "Year",
+    y = "Exposure Rate (%)"
+  )
+```
+
+# Poverty Rate for Puerto Ricans
+
+## Calculate Poverty Rate
+
+```{r Calculate poverty rate}
+# Calculate poverty estimates for Puerto Ricans and Total US Pop
+pr_poverty_50_24 <- calculate_poverty_rate(data_hist, pr_filter = TRUE)
+us_poverty_50_24 <- calculate_poverty_rate(data_hist, pr_filter = FALSE)
+```
+
+## Visualize poverty rate over time
+
+```{r Visualize poverty rate}
+p <- ggplot() +
+  geom_line(
+    data = pr_poverty_50_24,
+    aes(x = YEAR, y = poverty_rate, color = "Puerto Rican"),
+    linewidth = 1.5
+  ) +
+  geom_point(
+    data = pr_poverty_50_24,
+    aes(x = YEAR, y = poverty_rate, color = "Puerto Rican"),
+    size = 3
+  ) +
+  geom_line(
+    data = us_poverty_50_24,
+    aes(x = YEAR, y = poverty_rate, color = "Total US"),
+    linewidth = 1.5
+  ) +
+  geom_point(
+    data = us_poverty_50_24,
+    aes(x = YEAR, y = poverty_rate, color = "Total US"),
+    size = 3
+  ) +
+  my_theme +
+  # Using the established project color palette for consistency[cite: 2]
+  scale_color_manual(values = c("Puerto Rican" = "#d95f02", "Total US" = "#7570b3")) +
+  labs(
+    title = "Historical Poverty Rate",
+    subtitle = "Comparing Puerto Ricans to the total US population (1950-2024)",
+    caption = "Source: IPUMS USA, Decennial Census and ACS (1950-2024)",
+    x = NULL,
+    y = "Poverty Rate (%)"
+  ) +
+  scale_x_continuous(breaks = seq(1950, 2024, by = 10)) +
+  theme(
+    plot.title = element_text(size = 18, face = "bold"),
+    plot.subtitle = element_text(size = 14, color = "grey30"),
+    axis.text = element_text(size = 12),
+    axis.title = element_text(size = 14),
+    legend.text = element_text(size = 14),
+    plot.caption = element_text(size = 10, color = "grey50", hjust = 1)
+  )
+
+ggsave(
+  filename = "figures/pr_poverty_presentation.png",
+  plot = p,
+  width = 10, # Width in inches (standard for 16:9 slides)
+  height = 5.625, # Height in inches (10 / (16/9) = 5.625)
+  dpi = 300, # 300 DPI ensures it won't look pixelated on a projector
+  bg = "white" # Ensures the background is solid white, not transparent
+)
+
+print(p)
+```
+
+# Puerto Rican Workers Concentration by Regions
+
+```{r}
+# Map regions using IPUMS STATEFIP codes and calculate LFPR
+data_hist_regions <- data_hist %>%
+  mutate(
+    region = case_when(
+      STATEFIP %in% c(9, 23, 25, 33, 44, 50) ~ "New England",
+      STATEFIP %in% c(10, 11, 24, 34, 36, 42) ~ "Mideast",
+      STATEFIP %in% c(17, 18, 26, 39, 55) ~ "Great Lakes",
+      STATEFIP %in% c(19, 20, 27, 29, 31, 38, 46) ~ "Plains",
+      STATEFIP %in% c(1, 5, 12, 13, 21, 22, 28, 37, 45, 47, 51, 54) ~ "Southeast",
+      STATEFIP %in% c(4, 35, 40, 48) ~ "Southwest",
+      STATEFIP %in% c(8, 16, 30, 49, 56) ~ "Rocky Mountain",
+      STATEFIP %in% c(2, 6, 15, 32, 41, 53) ~ "Far West",
+      TRUE ~ "Other/PR"
+    )
+  ) %>%
+  filter(region != "Other/PR")
+
+# 1. Estimate Puerto Rican population in the labor force by region
+pr_labfor_region <- calculate_lfpr(
+  data_hist_regions,
+  pr_filter = TRUE,
+  grp_vars = "region"
+)
+```
+
+## Industry Share by Region
+
+```{r}
+# Map regions onto the mapped_workers_db
+mapped_workers_regions <- mapped_workers_db %>%
+  mutate(
+    region = case_when(
+      STATEFIP %in% c(9, 23, 25, 33, 44, 50) ~ "New England",
+      STATEFIP %in% c(10, 11, 24, 34, 36, 42) ~ "Mideast",
+      STATEFIP %in% c(17, 18, 26, 39, 55) ~ "Great Lakes",
+      STATEFIP %in% c(19, 20, 27, 29, 31, 38, 46) ~ "Plains",
+      STATEFIP %in% c(1, 5, 12, 13, 21, 22, 28, 37, 45, 47, 51, 54) ~ "Southeast",
+      STATEFIP %in% c(4, 35, 40, 48) ~ "Southwest",
+      STATEFIP %in% c(8, 16, 30, 49, 56) ~ "Rocky Mountain",
+      STATEFIP %in% c(2, 6, 15, 32, 41, 53) ~ "Far West",
+      TRUE ~ "Other/PR"
+    )
+  ) %>%
+  filter(region != "Other/PR")
+
+# 2. Calculate Puerto Rican Industry Share by Region
+pr_ind_share_region <- mapped_workers_regions %>%
+  # Filter for Puerto Ricans and remove Unclassified/Military
+  filter(
+    is_pr == TRUE,
+    !(ind_sector %in% c("21. Unclassified / Not in Labor Force", "20. Military"))
+  ) %>%
+  group_by(YEAR, region, ind_sector) %>%
+  summarise(workers = sum(PERWT, na.rm = TRUE), .groups = "drop") %>%
+  collect() %>%
+  # Group by Year and Region to calculate the percentage share within that specific region
+  group_by(YEAR, region) %>%
+  mutate(pct_workers = (workers / sum(workers)) * 100) %>%
+  ungroup()
+```
+
+## Occupation Share by region
+
+```{r}
+# 3. Calculate Puerto Rican AI Vulnerable Share by Region
+pr_ai_vuln_region <- mapped_workers_regions %>%
+  # Filter for Puerto Ricans and valid AI vulnerability mappings
+  filter(
+    is_pr == TRUE,
+    ai_vuln != "Unclassified"
+  ) %>%
+  group_by(YEAR, region, ai_vuln) %>%
+  summarise(workers = sum(PERWT, na.rm = TRUE), .groups = "drop") %>%
+  collect() %>%
+  # Group by Year and Region to calculate the regional percentage
+  group_by(YEAR, region) %>%
+  mutate(pct_workers = (workers / sum(workers)) * 100) %>%
+  ungroup()
+```

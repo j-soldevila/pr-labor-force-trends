@@ -1,0 +1,735 @@
+---
+title: "Update_AI_vulnerable_occ"
+author: "Jorge R. Soldevila Irizarry"
+date: "`r Sys.Date()`"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+options(scipen = 999)
+selected_years <- c(2005, 2010, 2015, 2020)
+
+# Source central setup file
+source("00_project_setup.R")
+
+ddi <- read_ipums_ddi("./usa_00121.xml")
+occ_labels <- ipums_val_labels(ddi, OCC2010) %>%
+  mutate(lbl = case_when(val == 1020 ~ "Software Developer",
+                         val == 430 ~ "Miscellaneous Managers",
+                         TRUE ~ lbl))
+```
+
+# AI Exposed Occupations Analysis
+
+## Map industry codes and AI vulnerable Occupations
+
+```{r Mapping Industry and Occupaiton Categories, message=FALSE,warning=FALSE}
+mapped_workers_db <- data_acs %>%
+  # Apply base employment filter, correcting the missing GQ != 3
+  filter(AGE >= 16, EMPSTAT == 1, GQ != 3) %>%
+  mutate(
+    # Create a boolean flag for PR status to split the data later
+    is_pr = case_when(HISPAN == 2 |
+                        HISPAND == 200 | ANCESTR1 == 261 ~ TRUE, TRUE ~ FALSE),
+    
+    # Map Industries
+    ind_sector = case_when(
+      IND1990 >= 10 & IND1990 <= 32 ~ "Ag, Forestry, Fish & Hunt",
+      IND1990 >= 40 & IND1990 <= 50 ~ "Mining, Quarry, Oil/Gas",
+      IND1990 >= 450 & IND1990 <= 472 ~ "Utilities",
+      IND1990 == 60 ~ "Construction",
+      IND1990 >= 100 & IND1990 <= 392 ~ "Manufacturing",
+      IND1990 >= 500 & IND1990 <= 571 ~ "Wholesale Trade",
+      (IND1990 >= 580 &
+         IND1990 <= 691) & IND1990 != 641 ~ "Retail Trade",
+      IND1990 >= 400 &
+        IND1990 <= 432 ~ "Transport & Warehousing",
+      IND1990 >= 440 &
+        IND1990 <= 442 ~ "Information",
+      # Maps 1990 Communications here
+      IND1990 >= 700 & IND1990 <= 711 ~ "Finance & Insurance",
+      IND1990 == 712 ~ "Real Estate & Leasing",
+      IND1990 == 841 |
+        (IND1990 >= 881 & IND1990 <= 893) ~ "Prof, Sci, & Tech Svcs",
+      IND1990 >= 721 &
+        IND1990 <= 741 ~ "Admin, Support, & Waste Mgmt",
+      IND1990 >= 842 & IND1990 <= 860 ~ "Educational Svcs",
+      (IND1990 >= 812 &
+         IND1990 <= 840) |
+        (IND1990 >= 861 & IND1990 <= 873) ~ "Health & Social Asst",
+      IND1990 >= 800 &
+        IND1990 <= 810 ~ "Arts, Entertain, & Rec",
+      IND1990 %in% c(641, 762, 770) ~ "Accom & Food Svcs",
+      IND1990 %in% c(750, 751, 752, 761, 771, 772, 
+                     781, 791) ~ "Other Svcs (excl. Pub Admin)",
+      IND1990 >= 900 & IND1990 <= 932 ~ "Public Admin",
+      IND1990 >= 940 & IND1990 <= 960 ~ "Military",
+      TRUE ~ "Unclassified / NILF"
+    ),
+    
+    # Map Occupations
+    occ_cat1 = case_when(
+      (OCC2010 >= 10 &
+         OCC2010 <= 960) |
+        (OCC2010 >= 2600 &
+           OCC2010 <= 2960) ~ "Mgmt, Bus, Entertain & Media",
+      OCC2010 >= 1000 & OCC2010 <= 1965 ~ "STEM",
+      (OCC2010 >= 2000 &
+         OCC2010 <= 2550) |
+        (OCC2010 >= 4300 &
+           OCC2010 <= 4650) ~ "Educ, Comm & Social Svcs",
+      OCC2010 >= 3000 & OCC2010 <= 3655 ~ "Health & Medical",
+      (OCC2010 >= 3700 &
+         OCC2010 <= 3955) |
+        (OCC2010 >= 9000 &
+           OCC2010 <= 9420) ~ "Law Enf & Transport",
+      OCC2010 >= 4000 &
+        OCC2010 <= 4250 ~ "Food, Maint, Bldg & Grounds",
+      OCC2010 >= 4700 & OCC2010 <= 4965 ~ "Sales & Related",
+      OCC2010 >= 5000 &
+        OCC2010 <= 5940 ~ "Admin & Office Support",
+      OCC2010 >= 6005 &
+        OCC2010 <= 7630 ~ "Nat Res, Const & Maint",
+      (OCC2010 >= 7700 &
+         OCC2010 <= 8965) |
+        (OCC2010 >= 9500 &
+           OCC2010 <= 9750) ~ "Prod & Material Moving",
+      OCC2010 >= 9800 & OCC2010 <= 9830 ~ "Military",
+      OCC2010 %in% c(9920, 9999) ~ "Unclassified",
+      TRUE ~ "Unclassified"
+    ), 
+    # Map AI vulnerable occupaitons 
+ai_vuln = case_when(
+  OCC2010 %in% c(10,20,110,120,150,160,430,540, 565, 630, 650, 700, 735,740,
+                 800, 910,1005, 1006, 1007, 1010, 1020, 1050,1105, 1106, 1400,
+                 1430, 1460, 1530,1965, 2825,3510, 3655,4830, 4850, 
+                 4940, 2145, 5100, 5110, 5120, 5160, 5240, 5400,
+                 5520, 5600, 5700, 5840, 5860) ~ "AI Vulnerable",
+  OCC2010 %in% c(9920, 9999) ~ "Unclassified",
+  TRUE ~ "Not AI Vulnerable"
+  ),
+  ai_vul_grp = case_when(
+    OCC2010 %in% c(10,20,110,120,150,160,430) ~ "Management",
+    OCC2010 %in% c(540, 565, 630, 650, 700, 735,740) ~ "Business Operations",
+    OCC2010 %in% c(800, 910) ~ "Financial Specialists",
+    OCC2010 %in% c(1005, 1006, 1007, 1010, 1020, 1050,
+                   1105, 1106, 1400, 1430, 1460, 1530,
+                   1965) ~ "STEM",
+    OCC2010 %in% c(2825) ~ "Entertainment and Media",
+    OCC2010 %in% c(3510, 3655) ~ "Health Care",
+    OCC2010 %in% c(4830, 4850, 4940) ~ "Sales and Related",
+    OCC2010 %in% c(2145, 5100, 5110, 5120, 5160, 5240, 5400,
+                   5520, 5600, 5700, 5840, 5860) ~ "Admin & Office Support",
+    TRUE ~ "Not AI Vulnerable"
+  )
+
+)
+```
+
+## Exposure over time (2001 to 2024)
+
+```{r Calculate exposure 2001-2024, message=FALSE, warning=FALSE}
+
+ai_exposure_pr <- mapped_workers_db %>%
+  filter(is_pr == TRUE, ai_vuln != "Unclassified") %>%
+  group_by(YEAR, ai_vuln) %>%
+  summarise(workers = sum(PERWT, na.rm = TRUE), .groups = "drop") %>%
+  collect() %>%
+  group_by(YEAR) %>%
+  mutate(pct_workers = (workers / sum(workers)) * 100, 
+         demographic = "Puerto Rican Workers") %>%
+  ungroup()
+
+ai_exposure_us <- mapped_workers_db %>%
+  filter(ai_vuln != "Unclassified") %>%
+  group_by(YEAR, ai_vuln) %>%
+  summarise(workers = sum(PERWT, na.rm = TRUE), .groups = "drop") %>%
+  collect() %>%
+  group_by(YEAR) %>%
+  mutate(pct_workers = (workers / sum(workers)) * 100, 
+         demographic = "Total US Workers") %>%
+  ungroup()
+
+ai_exposure_data <- bind_rows(ai_exposure_pr, ai_exposure_us)
+```
+
+```{r Visualize exposure, message=FALSE, warning=FALSE}
+p <- ggplot(ai_exposure_data %>% filter(ai_vuln == "AI Vulnerable"), 
+       aes(x = YEAR, y = pct_workers, color = demographic)) +
+  geom_line(linewidth = 1.5) +  
+  geom_point(size = 3) +    
+  geom_text(data = ai_exposure_data %>% 
+      filter(
+        ai_vuln == "AI Vulnerable", 
+        # Combine the 5-year sequence with the year 2024 manually
+        YEAR %in% c(seq(2001, 2024, by = 5), 2024) 
+      ),
+    aes(
+      label = paste0(round(pct_workers, 1), "%"),
+      # Conditional vjust: Positive pushes down, negative pushes up
+      vjust = ifelse(demographic == "Puerto Rican Workers", 1.8, -1.2)
+    ),
+    size = 3.5,      
+    fontface = "bold",
+    show.legend = FALSE
+    ) +
+  my_theme +
+  scale_color_manual(values = c("Puerto Rican Workers" = "#d95f02", "Total US Workers" = "#7570b3")) +
+  scale_y_continuous(
+    limits = c(0, 35),
+    breaks = seq(0,100, by = 5),
+    labels = function(x) paste0(x, "%")) +
+  scale_x_continuous(breaks = seq(2001, 2024, by = 5)) +
+  labs(
+    title = "Workforce Exposure to AI Technologies", 
+    subtitle = "Percentage of workers employed in AI-vulnerable occupations (2001-2024)", 
+    x = NULL, 
+    y = "Share of Workforce", 
+    caption = "Source: IPUMS USA, ACS (2001-2024)" 
+  )
+
+print(p)
+
+ggsave(
+  filename = "figures/ai_exposure_presentation.png",
+  plot = p,
+  width = 10, # Width in inches (standard for 16:9 slides)
+  height = 5.625, # Height in inches (10 / (16/9) = 5.625)
+  dpi = 300, # 300 DPI ensures it won't look pixelated on a projector
+  bg = "white" # Ensures the background is solid white, not transparent
+)
+```
+
+## AI Vulnerable Occupation Groups trends
+
+```{r Calculate Puerto Ricans in AI Vulnerable Occ, message=FALSE,warning=FALSE}
+ai_occ_grp_exposure_pr <- mapped_workers_db %>%
+  filter(is_pr == TRUE, ai_vul_grp != "Not AI Vulnerable") %>%
+  group_by(YEAR, ai_vul_grp) %>%
+  summarise(workers = sum(PERWT, na.rm = TRUE), .groups = "drop") %>%
+  collect() %>%
+  #left_join(occ_labels, by = c("OCC2010" = "val")) %>%
+  group_by(YEAR) %>%
+  mutate(pct_workers = (workers / sum(workers)) * 100, demographic = "Puerto Rican Workers") %>%
+  ungroup()
+
+ai_occ_grp_exposure_us <- mapped_workers_db %>%
+  filter(ai_vul_grp != "Not AI Vulnerable") %>%
+  group_by(YEAR, ai_vul_grp) %>%
+  summarise(workers = sum(PERWT, na.rm = TRUE), .groups = "drop") %>%
+  collect() %>%
+  #left_join(occ_labels, by = c("OCC2010" = "val")) %>%
+  group_by(YEAR) %>%
+  mutate(pct_workers = (workers / sum(workers)) * 100, demographic = "Total US Workers") %>%
+  ungroup()
+
+ai_exposure_by_occ_grp <- bind_rows(ai_occ_grp_exposure_pr, ai_occ_grp_exposure_us)
+
+```
+
+## Share of AI Workers per Occupation Groups
+
+```{r Share of AI Workers by Occupation, message=FALSE, warning=FALSE}
+# 2. Plot the comparison trends
+ggplot(ai_exposure_by_occ_grp, aes(
+  x = YEAR, 
+  y = pct_workers, 
+  color = demographic,
+  group = demographic
+)) +
+  geom_line(linewidth = 1.2) +
+  geom_point(size = 2) +
+  
+  # Facet by occupation to give each job its own comparison panel
+  facet_wrap(~ ai_vul_grp, ncol = 4, scales = "free_y") +
+  
+  # Distinct colors for the demographics
+  scale_color_manual(values = c(
+    "Puerto Rican Workers" = "#d95f02", # Orange for emphasis
+    "Total US Workers" = "#7570b3"      # Cooler purple/blue for baseline
+  )) +
+  
+  theme_bw() +
+  theme(
+    legend.position = "bottom",
+    legend.title = element_blank(), 
+    legend.text = element_text(size = 10, face = "bold"),
+    
+    strip.text = element_text(size = 8, face = "bold"),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    axis.text.y = element_text(size = 8)
+  ) +
+  
+  # Format Y-axis as percentages
+  scale_y_continuous(labels = function(x) paste0(x, "%")) +
+  
+  labs(
+    title = "Concentration of AI-Vulnerable Occupations",
+    subtitle = "Comparing the distribution of exposed Puerto Rican workers vs. the Total US baseline",
+    x = "Year",
+    y = "Share of AI-Vulnerable Workforce (%)"
+  )
+```
+
+## Share of workers per AI Vulnerable Occupations - 3-yr Rolling Average
+
+```{r Share of AI Workers by Occupation Rolling Avg, message=FALSE, warning=FALSE}
+
+# 1. Calculate the 3-year rolling average
+smoothed_data <- ai_exposure_by_occ_grp %>%
+  # Crucial: Ensure the data is sorted by year before calculating the average
+  arrange(demographic, ai_vul_grp, YEAR) %>%
+  
+  # Group by both demographic and your facet category so the math doesn't bleed across groups
+  group_by(demographic, ai_vul_grp) %>%
+  
+  mutate(
+    # k = 3 sets the 3-year window
+    # fill = NA ensures the first and last years are handled correctly without shifting the data
+    # align = "center" places the calculated average exactly on the middle year
+    pct_workers_smoothed = zoo::rollmean(pct_workers, k = 3, fill = NA, align = "center")
+  ) %>%
+  ungroup()
+
+# 2. Plot the smoothed data
+ggplot(smoothed_data, aes(x = YEAR, color = demographic)) +
+  
+  # The Background: Raw data plotted as thin, transparent lines
+  geom_line(aes(y = pct_workers), alpha = 0.3, linewidth = 0.5) +
+  
+  # The Foreground: Smoothed rolling average plotted as thick, bold lines
+  geom_line(aes(y = pct_workers_smoothed), linewidth = 1.2) +
+  
+  # Facet by your occupation categories (matching your image)
+  facet_wrap(~ai_vul_grp, scales = "free_y") +
+  
+  # Aesthetics and styling
+  scale_color_manual(values = c("Puerto Rican Workers" = "#d95f02", "Total US Workers" = "#7570b3")) +
+  scale_y_continuous(labels = function(x) paste0(x, "%")) +
+  theme_minimal() +
+  theme(
+    legend.position = "bottom",
+    panel.grid.minor = element_blank(),
+    strip.background = element_rect(fill = "gray90", color = NA) # Styles the facet headers
+  ) +
+  
+  # Labels
+  labs(
+    title = "Concentration of AI-Vulnerable Occupations",
+    subtitle = "Comparing a 3-Year Rolling Average (raw annual data shown as faded lines)",
+    x = "Year",
+    y = "Share of AI-Vulnerable Workforce (%)",
+    color = NULL
+  )
+```
+
+## AI Vulnerable Occupations by Occupation Group
+
+```{r Calculate Puerto Ricans in AI Vulnerable Occ, message=FALSE,warning=FALSE}
+
+ai_occ_exposure_pr <- mapped_workers_db %>%
+  filter(is_pr == TRUE, ai_vuln == "AI Vulnerable") %>%
+  group_by(YEAR, ai_vul_grp, OCC2010) %>%
+  summarise(workers = sum(PERWT, na.rm = TRUE), .groups = "drop") %>%
+  collect() %>%
+  left_join(occ_labels, by = c("OCC2010" = "val")) %>%
+  group_by(YEAR) %>%
+  mutate(pct_workers = (workers / sum(workers)) * 100, demographic = "Puerto Rican Workers") %>%
+  ungroup()
+
+ai_occ_exposure_us <- mapped_workers_db %>%
+  filter(ai_vuln == "AI Vulnerable") %>%
+  group_by(YEAR, ai_vul_grp, OCC2010) %>%
+  summarise(workers = sum(PERWT, na.rm = TRUE), .groups = "drop") %>%
+  collect() %>%
+  left_join(occ_labels, by = c("OCC2010" = "val")) %>%
+  group_by(YEAR) %>%
+  mutate(pct_workers = (workers / sum(workers)) * 100, demographic = "Total US Workers") %>%
+  ungroup()
+
+ai_exposure_by_occ <- bind_rows(ai_occ_exposure_pr, ai_occ_exposure_us)
+
+```
+
+## Occupations vulnerable to AI by Occupation Groups
+
+```{r Calculate Occupations by Occ Group, message=FALSE,warning=FALSE}
+# 1. Get a list of all unique AI vulnerable groups
+ai_groups <- unique(ai_exposure_by_occ$ai_vul_grp)
+
+# 2. Loop through each group
+for (group_name in ai_groups) {
+  
+  plot_data <- ai_occ_exposure_pr %>% 
+    filter(ai_vul_grp == group_name)
+  
+  label_data <- plot_data %>% 
+    filter(YEAR == max(YEAR))
+  
+  # 3. Build the plot (Notice 'color = lbl' added here)
+  p <- ggplot(plot_data, aes(x = YEAR, y = pct_workers, group = lbl, color = lbl)) +
+    
+    # Removed the hardcoded color so it uses the distinct colors generated by ggplot
+    geom_line(linewidth = 0.8, alpha = 0.8) +
+    
+    # Add labels at the end. They will automatically inherit the line's color!
+    geom_text(
+      data = label_data,
+      aes(label = str_wrap(lbl, 25)), 
+      hjust = 0,                      
+      nudge_x = 0.5,                  
+      size = 3,
+      lineheight = 0.8,
+      show.legend = FALSE # Prevents 'a' from showing up in legends if you re-enable them
+    ) +
+    
+    facet_wrap(~ demographic) +
+    
+    scale_x_continuous(
+      breaks = seq(2001, 2024, by = 5),
+      expand = expansion(mult = c(0.05, 0.6)) 
+    ) +
+    
+    scale_y_continuous(labels = function(x) paste0(x, "%")) +
+    
+    theme_bw() +
+    theme(
+      legend.position = "none", # Keeps the side legend hidden since we have direct labels
+      strip.background = element_rect(fill = "gray90", color = NA),
+      strip.text = element_text(face = "bold"),
+      plot.title = element_text(face = "bold")
+    ) +
+    
+    labs(
+      title = paste("Occupation-Level Exposure:", group_name),
+      x = "Year",
+      y = "Share of AI-Vulnerable Workforce (%)"
+    )
+  
+  # 4. Print the plot
+  print(p)
+}
+```
+
+## Puerto Rican concentration by specific occupation
+
+```{r Top 10 occupations for PR, message = FALSE, warning = FALSE}
+top_10_pr <- mapped_workers_db %>%
+  filter(is_pr == TRUE, YEAR == 2024, ai_vuln == "AI Vulnerable") %>%
+  group_by(OCC2010) %>%
+  summarise(total_workers = sum(PERWT, na.rm = TRUE), .groups = "drop") %>%
+  collect() %>%
+  mutate(
+    pct_workers = (total_workers / sum(total_workers)) * 100, 
+    demographic = "Puerto Rican Workers"
+  ) %>%
+  slice_max(order_by = total_workers, n = 10) %>%
+  left_join(occ_labels, by = c("OCC2010" = "val"))
+
+# 2. Get the Total US Baseline for ONLY those 10 occupations
+top_10_us <- mapped_workers_db %>%
+  filter(YEAR == 2024, ai_vuln == "AI Vulnerable") %>%
+  group_by(OCC2010) %>%
+  summarise(total_workers = sum(PERWT, na.rm = TRUE), .groups = "drop") %>%
+  collect() %>%
+  mutate(
+    pct_workers = (total_workers / sum(total_workers)) * 100, 
+    demographic = "Total US Workers"
+  ) %>%
+  # NEW: Filter using the exact occupation codes from the PR dataset
+  filter(OCC2010 %in% top_10_pr$OCC2010) %>%
+  left_join(occ_labels, by = c("OCC2010" = "val"))
+
+# 3. Combine the data and lock in the sorting order
+# We want the bars sorted by the Puerto Rican highest values, not alphabetically
+ordered_labels <- top_10_pr %>% 
+  arrange(pct_workers) %>% 
+  pull(lbl)
+
+plot_data <- bind_rows(top_10_pr, top_10_us) %>%
+  mutate(lbl = factor(lbl, levels = ordered_labels))
+
+# 4. Plot the horizontal bar chart
+p_compare <- ggplot(plot_data, aes(x = pct_workers, y = lbl, fill = demographic)) +
+  
+  # position = "dodge" places the PR and US bars side-by-side rather than stacking them
+  geom_col(position = position_dodge(width = 0.8), width = 0.7) +
+  
+  # Add text labels to the end of the bars
+  geom_text(
+    aes(label = paste0(round(pct_workers, 1), "%")), 
+    position = position_dodge(width = 0.8), 
+    hjust = -0.15,
+    size = 3.5
+  ) +
+  
+  # Colors to match your existing presentation theme
+  scale_fill_manual(values = c("Puerto Rican Workers" = "#d95f02", "Total US Workers" = "#7570b3")) +
+  
+  # Format X-axis and expand it so labels aren't cut off
+  scale_x_continuous(
+    labels = function(x) paste0(x, "%"),
+    expand = expansion(mult = c(0, 0.15))
+  ) +
+  
+  my_theme +
+  theme(
+    legend.position = "bottom",
+    legend.title = element_blank(),
+    panel.grid.major.y = element_blank(), # Removes horizontal lines for a cleaner look
+    axis.text.y = element_text(size = 10)
+  ) +
+  
+  labs(
+    title = "Top 10 AI-Vulnerable Occupations for Puerto Rican Workers",
+    subtitle = "Comparing the share of AI-vulnerable workers in 2024 against the Total US baseline",
+    x = "Share of AI-Vulnerable Workforce (%)",
+    y = NULL,
+    caption = "Source: IPUMS USA, ACS (2024)"
+  )
+
+print(p_compare)
+
+```
+
+## Demographic variations in AI vulnerable occupations
+
+```{r Demographic difference calculation and visualization, message=FALSE, warning=FALSE}
+# Puerto Rican Data
+ai_demographics_pr <- mapped_workers_db %>%
+  filter(is_pr == TRUE, ai_vuln != "Unclassified", SEX != 9) %>%
+  mutate(sex_label = ifelse(SEX == 1, "Male", "Female")) %>%
+  group_by(YEAR, sex_label, ai_vuln) %>%
+  summarise(workers = sum(PERWT, na.rm = TRUE), .groups = "drop") %>%
+  collect() %>%
+  group_by(YEAR, sex_label) %>%
+  mutate(
+    pct_workers = (workers / sum(workers)) * 100,
+    demographic = "Puerto Rican Workers" # Added identifier
+  ) %>%
+  ungroup()
+
+# Total US Data
+ai_demographics_us <- mapped_workers_db %>%
+  filter(ai_vuln != "Unclassified", SEX != 9) %>%
+  mutate(sex_label = ifelse(SEX == 1, "Male", "Female")) %>%
+  group_by(YEAR, sex_label, ai_vuln) %>%
+  summarise(workers = sum(PERWT, na.rm = TRUE), .groups = "drop") %>%
+  collect() %>%
+  group_by(YEAR, sex_label) %>%
+  mutate(
+    pct_workers = (workers / sum(workers)) * 100,
+    demographic = "Total US Workers" # Added identifier
+  ) %>%
+  ungroup()
+
+# Combine datasets
+ai_demographics <- bind_rows(ai_demographics_pr, ai_demographics_us)
+
+```
+
+### Visualize trends among men and women
+
+```{r}
+p <- ggplot(
+  ai_demographics %>% filter(ai_vuln == "AI Vulnerable"), 
+  aes(
+    x = YEAR, 
+    y = pct_workers, 
+    color = demographic, 
+    linetype = sex_label, 
+    shape = sex_label # Makes the points distinct too!
+  )
+) +
+  geom_line(linewidth = 1.5) +
+  geom_point(size = 3) +
+  
+  my_theme +
+  
+  # Assign colors to the demographics
+  scale_color_manual(values = c(
+    "Puerto Rican Workers" = "#d95f02", 
+    "Total US Workers" = "#7570b3"
+  )) +
+  
+  # Format axes
+  scale_y_continuous(
+    limits = c(0, 35),
+    breaks = seq(0,100, by = 5),
+    labels = function(x) paste0(x, "%")) +
+  scale_x_continuous(breaks = seq(1950, 2024, by = 10)) +
+  
+  labs(
+    title = "AI Vulnerability by Sex: Puerto Rican vs. Total US Workers",
+    subtitle = "Percentage of each sex's workforce in AI-vulnerable occupations",
+    x = NULL, 
+    y = "Exposure Rate",
+    color = "Demographic", # Titles for the legends
+    linetype = "Sex",
+    shape = "Sex",
+    caption = "Source: IPUMS USA, ACS (2001-2024)"
+  )
+
+print(p)
+
+# ggsave(
+#   filename = "figures/ai_exposure_gender_presentation.png",
+#   plot = p,
+#   width = 10, # Width in inches (standard for 16:9 slides)
+#   height = 5.625, # Height in inches (10 / (16/9) = 5.625)
+#   dpi = 300, # 300 DPI ensures it won't look pixelated on a projector
+#   bg = "white" # Ensures the background is solid white, not transparent
+# )
+# 
+```
+## Top 10 industry by Sex
+
+```{r}
+# 1. Filter and calculate the gender distribution for the Top 10 PR occupations
+pr_gender_dist <- mapped_workers_db %>%
+  # Filter for PR workers in 2024, exposed to AI, and remove unknown gender (if any)
+  filter(
+    is_pr == TRUE, 
+    YEAR == 2024, 
+    ai_vuln == "AI Vulnerable",
+    SEX != 9, 
+    OCC2010 %in% top_10_pr$OCC2010 # Limits data to ONLY the top 10 jobs from the previous step
+  ) %>%
+  
+  # Create a readable label for gender
+  mutate(sex_label = ifelse(SEX == 1, "Male", "Female")) %>%
+  
+  # Group by the occupation and gender to get the worker counts
+  group_by(OCC2010, sex_label) %>%
+  summarise(workers = sum(PERWT, na.rm = TRUE), .groups = "drop") %>%
+  collect() %>%
+  
+  # Join with occupation labels
+  left_join(occ_labels, by = c("OCC2010" = "val")) %>%
+  
+  # Calculate the percentage breakdown WITHIN each occupation
+  group_by(lbl) %>%
+  mutate(pct_gender = (workers / sum(workers)) * 100) %>%
+  ungroup() %>%
+  
+  # Lock in the same sorting order used in your previous graph
+  mutate(lbl = factor(lbl, levels = ordered_labels))
+
+# 2. Plot the stacked bar chart
+p_gender <- ggplot(pr_gender_dist, aes(x = pct_gender, y = lbl, fill = sex_label)) +
+  
+  # Use position = "stack" to make each bar add up to 100%
+  geom_col(position = "stack", width = 0.7) +
+  
+  # Add percentage text labels inside the bars
+  geom_text(
+    aes(label = paste0(round(pct_gender, 1), "%")), 
+    position = position_stack(vjust = 0.5), # Centers the text inside each colored block
+    color = "white", 
+    size = 3.5,
+    fontface = "bold"
+  ) +
+  
+  # Distinct colors for Male and Female
+  scale_fill_manual(values = c("Male" = "#1b9e77", "Female" = "#e7298a")) +
+  
+  # Format X-axis
+  scale_x_continuous(
+    labels = function(x) paste0(x, "%"),
+    expand = c(0, 0) # Removes the blank space at the edges of the 100% bars
+  ) +
+  
+  theme_minimal() +
+  theme(
+    legend.position = "bottom",
+    legend.title = element_blank(),
+    panel.grid.major.y = element_blank(), 
+    axis.text.y = element_text(size = 10)
+  ) +
+  
+  labs(
+    title = "Gender Distribution in Top 10 AI-Vulnerable Occupations",
+    subtitle = "Male vs. Female share within each occupation for Puerto Rican Workers (2024)",
+    x = "Share of Workers within Occupation (%)",
+    y = NULL,
+    caption = "Source: IPUMS USA, ACS (2024)"
+  )
+
+print(p_gender)
+```
+
+
+## Comparing Occupations by Industry
+
+```{r Industry by Occupations, message=FALSE, warning=FALSE}
+#We want to know in what industries are vulnerable occupations associated with.
+ai_occ_by_industry_pr <- mapped_workers_db %>%
+  # 1. Filter for PR workers and explicitly isolate AI Vulnerable occupations
+  filter(is_pr == TRUE, ai_vuln == "AI Vulnerable") %>%
+  
+  # 2. Group by Year, Industry, and specific Occupation Code
+  group_by(YEAR, IND1990, OCC2010) %>%
+  summarise(workers = sum(PERWT, na.rm = TRUE), .groups = "drop") %>%
+  collect() %>%
+  
+  # 3. Join with your label dataset so you can read the actual job titles
+  left_join(occ_labels, by = c("OCC2010" = "val")) %>%
+  
+  # 4. Group by Year AND Industry to calculate the percentage
+  group_by(YEAR, IND1990) %>%
+  mutate(
+    # This now means: "What % of this industry's vulnerable workforce does this job make up?"
+    pct_workers = (workers / sum(workers)) * 100, 
+    demographic = "Puerto Rican Workers"
+  ) %>%
+  ungroup()
+```
+
+
+## Share of Workers per Occupation 2001 - 2024
+
+```{r Share of AI Workers by Occupation, message=FALSE, warning=FALSE}
+# 2. Plot the comparison trends
+ggplot(ai_exposure_by_occ_grp, aes(
+  x = YEAR, 
+  y = pct_workers, 
+  color = demographic,
+  group = demographic
+)) +
+  geom_line(linewidth = 1.2) +
+  geom_point(size = 2) +
+  
+  # Facet by occupation to give each job its own comparison panel
+  facet_wrap(~ ai_vul_grp, ncol = 4, scales = "free_y") +
+  
+  # Distinct colors for the demographics
+  scale_color_manual(values = c(
+    "Puerto Rican Workers" = "#d95f02", # Orange for emphasis
+    "Total US Workers" = "#7570b3"      # Cooler purple/blue for baseline
+  )) +
+  
+  theme_bw() +
+  theme(
+    legend.position = "bottom",
+    legend.title = element_blank(), 
+    legend.text = element_text(size = 10, face = "bold"),
+    
+    strip.text = element_text(size = 8, face = "bold"),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    axis.text.y = element_text(size = 8)
+  ) +
+  
+  # Format Y-axis as percentages
+  scale_y_continuous(labels = function(x) paste0(x, "%")) +
+  
+  labs(
+    title = "Concentration of AI-Vulnerable Occupations",
+    subtitle = "Comparing the distribution of exposed Puerto Rican workers vs. the Total US baseline",
+    x = "Year",
+    y = "Share of AI-Vulnerable Workforce (%)"
+  )
+```
+
+
